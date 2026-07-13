@@ -1,0 +1,13 @@
+{
+	"name": "wp-remote-work/wp-remote-og-plugins",
+	"description": "Generates dynamic server-rendered Open Graph images for WP Remote Work posts.",
+	"type": "wordpress-plugin",
+	"version": "0.1.6",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=7.4"
+	},
+	"scripts": {
+		"build:zip": "php build-plugin-zip.php"
+	}
+}
