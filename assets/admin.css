@@ -634,9 +634,10 @@
 }
 
 .wp-remote-og-resize-handle {
-	background: var(--wpog-accent);
-	border: 2px solid #fff;
-	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+	background: #fff;
+	border: 2px solid var(--wpog-accent);
+	border-radius: 50%;
+	box-shadow: 0 1px 3px rgba(16, 24, 40, 0.28);
 	opacity: 0;
 	position: absolute;
 	transition: opacity 120ms ease;
@@ -650,28 +651,28 @@
 }
 
 .wp-remote-og-resize-handle-corner {
-	bottom: 0;
+	bottom: -7px;
 	cursor: nwse-resize;
-	height: 12px;
-	right: 0;
-	width: 12px;
+	height: 14px;
+	right: -7px;
+	width: 14px;
 }
 
 .wp-remote-og-resize-handle-left,
 .wp-remote-og-resize-handle-right {
 	cursor: ew-resize;
-	height: 34px;
-	margin-top: -17px;
+	height: 14px;
+	margin-top: -7px;
 	top: 50%;
-	width: 8px;
+	width: 14px;
 }
 
 .wp-remote-og-resize-handle-left {
-	left: -5px;
+	left: -7px;
 }
 
 .wp-remote-og-resize-handle-right {
-	right: -5px;
+	right: -7px;
 }
 
 .wp-remote-og-layer-list {
@@ -1227,4 +1228,363 @@
 	display: flex;
 	justify-content: flex-end;
 	margin-top: 16px;
+}
+
+/* ==========================================================================
+   Editor workspace (Commit 4)
+   ========================================================================== */
+.wpog-icon {
+	display: block;
+}
+
+.wpog-icon-btn {
+	align-items: center;
+	background: var(--wpog-panel);
+	border: 1px solid var(--wpog-border);
+	border-radius: var(--wpog-radius-sm);
+	color: var(--wpog-text-soft);
+	cursor: pointer;
+	display: inline-flex;
+	height: 34px;
+	justify-content: center;
+	padding: 0;
+	width: 34px;
+}
+
+.wpog-icon-btn:hover:not(:disabled) {
+	background: var(--wpog-muted);
+	color: var(--wpog-text);
+}
+
+.wpog-icon-btn:disabled {
+	cursor: default;
+	opacity: 0.45;
+}
+
+/* Top app bar -------------------------------------------------------------- */
+.wpog-editor-bar {
+	align-items: center;
+	background: var(--wpog-panel);
+	border: 1px solid var(--wpog-border);
+	border-radius: var(--wpog-radius);
+	box-shadow: var(--wpog-shadow);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	justify-content: space-between;
+	margin-bottom: 18px;
+	padding: 10px 14px;
+}
+
+.wpog-editor-bar-left {
+	align-items: center;
+	display: flex;
+	gap: 12px;
+}
+
+.wpog-editor-title {
+	font-size: 17px;
+	font-weight: 700;
+	margin: 0;
+	padding: 0;
+}
+
+.wpog-dirty {
+	color: var(--wpog-text-soft);
+	font-size: 12.5px;
+}
+
+.wpog-dirty.is-dirty {
+	color: var(--wpog-warn);
+	font-weight: 600;
+}
+
+.wpog-editor-bar-right {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.wpog-preview-select {
+	max-width: 220px;
+}
+
+.wpog-save-btn.button-primary {
+	align-items: center;
+	display: inline-flex;
+	gap: 6px;
+}
+
+.wpog-save-btn.is-busy {
+	opacity: 0.7;
+}
+
+/* Overflow menus ----------------------------------------------------------- */
+.wpog-overflow {
+	position: relative;
+}
+
+.wpog-overflow-menu {
+	background: var(--wpog-panel);
+	border: 1px solid var(--wpog-border);
+	border-radius: var(--wpog-radius-sm);
+	box-shadow: var(--wpog-shadow-lg);
+	min-width: 220px;
+	padding: 6px;
+	position: absolute;
+	right: 0;
+	top: calc(100% + 6px);
+	z-index: 1000;
+}
+
+.wpog-overflow-menu[hidden] {
+	display: none;
+}
+
+.wpog-overflow-item {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: 5px;
+	color: var(--wpog-text);
+	cursor: pointer;
+	display: flex;
+	gap: 8px;
+	padding: 8px 10px;
+	text-align: left;
+	text-decoration: none;
+	width: 100%;
+}
+
+.wpog-overflow-item:hover,
+.wpog-overflow-item:focus {
+	background: var(--wpog-muted);
+}
+
+.wpog-overflow-item.is-danger {
+	color: var(--wpog-bad);
+}
+
+.wpog-overflow-item .wpog-icon {
+	color: var(--wpog-text-soft);
+	flex: 0 0 auto;
+}
+
+.wpog-overflow-import {
+	background: transparent;
+	border: 0;
+	border-top: 1px solid var(--wpog-border);
+	display: block;
+	margin-top: 6px;
+	padding: 10px 10px 4px;
+}
+
+.wpog-overflow-item-label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.wpog-overflow-import input[type="file"] {
+	max-width: 100%;
+}
+
+/* Workspace layout --------------------------------------------------------- */
+.wpog-workspace {
+	align-items: stretch;
+	display: grid;
+	gap: 16px;
+	grid-template-columns: 240px minmax(0, 1fr) 320px;
+}
+
+.wpog-panel {
+	background: var(--wpog-panel);
+	border: 1px solid var(--wpog-border);
+	border-radius: var(--wpog-radius);
+	box-shadow: var(--wpog-shadow);
+}
+
+.wpog-panel-left {
+	overflow: hidden;
+}
+
+.wpog-panel-head {
+	align-items: center;
+	border-bottom: 1px solid var(--wpog-border);
+	display: flex;
+	justify-content: space-between;
+	padding: 12px 14px;
+}
+
+.wpog-panel-title {
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.wpog-panel-tools {
+	display: flex;
+	gap: 4px;
+}
+
+.wpog-panel-tools .wpog-icon-btn {
+	border-color: transparent;
+	height: 30px;
+	width: 30px;
+}
+
+/* Layer list (Structure) --------------------------------------------------- */
+.wpog-panel-left .wp-remote-og-layer-list {
+	border: 0;
+	margin: 0;
+	max-height: none;
+}
+
+.wpog-panel-left .wp-remote-og-layer-list li {
+	border-bottom: 1px solid var(--wpog-border);
+	gap: 10px;
+	justify-content: flex-start;
+}
+
+.wp-remote-og-layer-icon {
+	align-items: center;
+	color: var(--wpog-text-soft);
+	display: inline-flex;
+	flex: 0 0 16px;
+	height: 16px;
+	width: 16px;
+}
+
+.wp-remote-og-layer-icon svg {
+	height: 16px;
+	width: 16px;
+}
+
+.wp-remote-og-layer-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wp-remote-og-layer-list li.is-selected .wp-remote-og-layer-icon {
+	color: var(--wpog-accent-hover);
+}
+
+/* Canvas zone -------------------------------------------------------------- */
+.wpog-canvas-zone {
+	background: #f1f5f9;
+	border: 1px solid var(--wpog-border);
+	border-radius: var(--wpog-radius);
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	padding: 20px;
+}
+
+.wpog-canvas-zone .wp-remote-og-canvas-frame {
+	display: flex;
+	justify-content: center;
+	overflow: auto;
+	padding: 0;
+}
+
+.wpog-canvas-zone .wp-remote-og-canvas {
+	border: 0;
+	box-shadow: 0 12px 34px rgba(16, 24, 40, 0.22);
+}
+
+.wp-remote-og-safe-area {
+	border-color: rgba(79, 70, 229, 0.45);
+}
+
+/* Inspector ---------------------------------------------------------------- */
+.wpog-panel-right {
+	padding: 0;
+}
+
+.wpog-inspector {
+	padding: 0;
+}
+
+.wpog-inspector-empty {
+	color: var(--wpog-text-soft);
+	font-size: 13px;
+	padding: 24px 16px;
+	text-align: center;
+}
+
+.wpog-inspector-head {
+	align-items: center;
+	border-bottom: 1px solid var(--wpog-border);
+	display: flex;
+	gap: 8px;
+	justify-content: space-between;
+	padding: 12px 14px;
+}
+
+.wpog-inspector-name {
+	font-weight: 700;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpog-section {
+	border-bottom: 1px solid var(--wpog-border);
+}
+
+.wpog-section-summary {
+	align-items: center;
+	cursor: pointer;
+	display: flex;
+	font-weight: 600;
+	justify-content: space-between;
+	list-style: none;
+	padding: 12px 14px;
+	user-select: none;
+}
+
+.wpog-section-summary::-webkit-details-marker {
+	display: none;
+}
+
+.wpog-section-summary .wpog-icon {
+	color: var(--wpog-text-soft);
+	transition: transform 120ms ease;
+}
+
+.wpog-section[open] > .wpog-section-summary .wpog-icon {
+	transform: rotate(180deg);
+}
+
+.wpog-section-body {
+	padding: 0 14px 14px;
+}
+
+.wpog-inspector label {
+	display: block;
+	font-size: 12.5px;
+	font-weight: 600;
+	margin-bottom: 12px;
+}
+
+.wpog-inspector input,
+.wpog-inspector select {
+	font-weight: 400;
+	margin-top: 4px;
+	width: 100%;
+}
+
+/* Responsive stacking ------------------------------------------------------ */
+@media (max-width: 1100px) {
+	.wpog-workspace {
+		grid-template-columns: 1fr;
+	}
+
+	.wpog-panel-left,
+	.wpog-panel-right {
+		max-width: 100%;
+	}
 }

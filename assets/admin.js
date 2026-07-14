@@ -8,8 +8,90 @@
 		ready: false,
 		suspendControls: false,
 		interaction: null,
-		mediaFrame: null
+		mediaFrame: null,
+		history: { undo: [], redo: [] },
+		dirtySinceSave: false
 	};
+
+	var HISTORY_LIMIT = 60;
+
+	function snapshotTemplate() {
+		return clone(state.template);
+	}
+
+	function markDirty(flag) {
+		state.dirtySinceSave = false !== flag;
+		var indicator = $('#wp-remote-og-dirty-indicator');
+		if (!indicator.length) {
+			return;
+		}
+		if (state.dirtySinceSave) {
+			indicator.addClass('is-dirty').text(indicator.data('unsaved-label') || 'Unsaved changes');
+		} else {
+			indicator.removeClass('is-dirty').text(indicator.data('saved-label') || 'All changes saved');
+		}
+	}
+
+	function updateHistoryButtons() {
+		$('#wp-remote-og-undo').prop('disabled', !state.history.undo.length);
+		$('#wp-remote-og-redo').prop('disabled', !state.history.redo.length);
+	}
+
+	function pushHistory(snapshot) {
+		if (!snapshot) {
+			return;
+		}
+		state.history.undo.push(snapshot);
+		if (state.history.undo.length > HISTORY_LIMIT) {
+			state.history.undo.shift();
+		}
+		state.history.redo = [];
+		updateHistoryButtons();
+	}
+
+	function recordHistory() {
+		if (!state.template) {
+			return;
+		}
+		pushHistory(snapshotTemplate());
+		markDirty(true);
+	}
+
+	function restoreFromHistory(fromStack, toStack) {
+		if (!fromStack.length) {
+			return;
+		}
+		toStack.push(snapshotTemplate());
+		state.template = fromStack.pop();
+		if (!state.template.layers.length) {
+			state.selectedLayerId = null;
+		} else if (!currentLayer()) {
+			state.selectedLayerId = state.template.layers[0].id;
+		}
+		updateHistoryButtons();
+		markDirty(true);
+		renderLayerList();
+		renderCanvas();
+		fillControls(currentLayer());
+	}
+
+	function undoHistory() {
+		restoreFromHistory(state.history.undo, state.history.redo);
+	}
+
+	function redoHistory() {
+		restoreFromHistory(state.history.redo, state.history.undo);
+	}
+
+	function layerTypeIcon(type) {
+		if ('image' === type) {
+			return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+		}
+		if ('line' === type) {
+			return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/></svg>';
+		}
+		return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V5h16v2M9 5v14M7 19h4"/></svg>';
+	}
 
 	function clone(value) {
 		return JSON.parse(JSON.stringify(value));
@@ -389,6 +471,7 @@
 			return;
 		}
 
+		recordHistory();
 		state.interaction = {
 			type: 'move',
 			id: id,
@@ -409,6 +492,7 @@
 			return;
 		}
 
+		recordHistory();
 		state.interaction = {
 			type: 'resize',
 			id: id,
@@ -508,6 +592,9 @@
 			return;
 		}
 
+		if (!event.repeat) {
+			recordHistory();
+		}
 		var step = event.shiftKey ? 10 : 1;
 		var deltaX = 'ArrowLeft' === event.key ? -step : ('ArrowRight' === event.key ? step : 0);
 		var deltaY = 'ArrowUp' === event.key ? -step : ('ArrowDown' === event.key ? step : 0);
@@ -849,12 +936,22 @@
 
 		list.empty();
 		state.template.layers.forEach(function (layer) {
+			var labelText = layer.label || ('line' === layer.type ? lineLayerLabel(layer) : layer.content) || layer.id;
 			var item = $('<li/>', {
 				'data-layer-id': layer.id,
 				tabindex: 0,
-				role: 'button',
-				text: layer.label || ('line' === layer.type ? lineLayerLabel(layer) : layer.content) || layer.id
+				role: 'option',
+				'aria-selected': layer.id === state.selectedLayerId ? 'true' : 'false'
 			});
+			$('<span/>', {
+				'class': 'wp-remote-og-layer-icon',
+				'aria-hidden': 'true',
+				html: layerTypeIcon(layer.type)
+			}).appendTo(item);
+			$('<span/>', {
+				'class': 'wp-remote-og-layer-label',
+				text: labelText
+			}).appendTo(item);
 			if (layer.id === state.selectedLayerId) {
 				item.addClass('is-selected');
 			}
@@ -875,9 +972,16 @@
 		if (!layer) {
 			$('.wp-remote-og-controls input, .wp-remote-og-controls select').val('');
 			$('#wp-remote-og-layer-type').val('text');
+			$('#wp-remote-og-inspector-empty').show();
+			$('#wp-remote-og-inspector-body').hide();
 			state.suspendControls = false;
 			return;
 		}
+
+		$('#wp-remote-og-inspector-empty').hide();
+		$('#wp-remote-og-inspector-body').show();
+		var inspectorName = layer.label || ('line' === layer.type ? lineLayerLabel(layer) : ('image' === layer.type ? 'Image Layer' : layer.content)) || layer.id;
+		$('#wp-remote-og-inspector-name').text(inspectorName);
 
 		var isImage = 'image' === layer.type;
 		var isLine = 'line' === layer.type;
@@ -971,6 +1075,7 @@
 			layer.width = layerWidth;
 			layer.height = layerHeight;
 		}
+		markDirty(true);
 		renderLayerList();
 		renderCanvas();
 		if ('wp-remote-og-layer-type' === changedFieldId || 'wp-remote-og-layer-line-orientation' === changedFieldId) {
@@ -982,6 +1087,7 @@
 	}
 
 	function addLayer() {
+		recordHistory();
 		var id = 'layer-' + Date.now();
 		state.template.layers.push({
 			id: id,
@@ -1006,6 +1112,7 @@
 	}
 
 	function addImageLayer() {
+		recordHistory();
 		var id = 'layer-' + Date.now();
 		state.template.layers.push({
 			id: id,
@@ -1033,6 +1140,7 @@
 	}
 
 	function addLineLayer(orientation) {
+		recordHistory();
 		orientation = 'vertical' === orientation ? 'vertical' : 'horizontal';
 		var id = 'layer-' + Date.now();
 		var isVertical = 'vertical' === orientation;
@@ -1058,6 +1166,23 @@
 			requires_token: ''
 		});
 		selectLayer(id);
+	}
+
+	function duplicateLayer() {
+		var layer = currentLayer();
+		if (!layer) {
+			return;
+		}
+		recordHistory();
+		var copy = clone(layer);
+		copy.id = 'layer-' + Date.now();
+		copy.x = Math.round(clamp(layer.x + 20, 0, 1200 - layer.width));
+		copy.y = Math.round(clamp(layer.y + 20, 0, 630 - layer.height));
+		var index = state.template.layers.findIndex(function (item) {
+			return item.id === layer.id;
+		});
+		state.template.layers.splice(index + 1, 0, copy);
+		selectLayer(copy.id);
 	}
 
 	function selectLayerImage() {
@@ -1099,7 +1224,10 @@
 
 	function saveTemplate() {
 		var status = $('#wp-remote-og-status');
+		var button = $('#wp-remote-og-save-template');
+		var selectedId = state.selectedLayerId;
 		setStatusMessage(status, 'Saving...', 'busy');
+		button.prop('disabled', true).addClass('is-busy');
 		$.post(WPRemoteOG.ajaxUrl, {
 			action: 'wp_remote_og_save_template',
 			nonce: WPRemoteOG.nonce,
@@ -1107,12 +1235,20 @@
 		}).done(function (response) {
 			if (response.success) {
 				state.template = response.data.template;
+				if (selectedId && currentLayer()) {
+					state.selectedLayerId = selectedId;
+				}
+				markDirty(false);
+				renderLayerList();
+				renderCanvas();
 				setStatusMessage(status, WPRemoteOG.strings.saved, 'success');
 			} else {
 				setStatusMessage(status, response.data && response.data.message ? response.data.message : 'Unable to save template.', 'error');
 			}
 		}).fail(function () {
 			setStatusMessage(status, 'Unable to save template.', 'error');
+		}).always(function () {
+			button.prop('disabled', false).removeClass('is-busy');
 		});
 	}
 
@@ -1157,6 +1293,7 @@
 		});
 		frame.on('select', function () {
 			var attachment = frame.state().get('selection').first().toJSON();
+			recordHistory();
 			state.template.background = {
 				id: attachment.id,
 				url: attachment.url
@@ -1223,6 +1360,7 @@
 				$(this).val('');
 				return;
 			}
+			recordHistory();
 			var input = $('#wp-remote-og-layer-content');
 			if ('image' === layer.type) {
 				input.val(token);
@@ -1241,23 +1379,100 @@
 			}
 		});
 		$('#wp-remote-og-layer-select-image').on('click', selectLayerImage);
+		$('#wp-remote-og-duplicate-layer').on('click', function () {
+			closeOverflowMenus();
+			duplicateLayer();
+		});
 		$('#wp-remote-og-delete-layer').on('click', function () {
+			closeOverflowMenus();
 			if (!state.selectedLayerId || state.template.layers.length <= 1) {
 				return;
 			}
+			recordHistory();
 			state.template.layers = state.template.layers.filter(function (layer) {
 				return layer.id !== state.selectedLayerId;
 			});
 			state.selectedLayerId = state.template.layers[0].id;
 			selectLayer(state.selectedLayerId);
 		});
+		$('#wp-remote-og-undo').on('click', undoHistory);
+		$('#wp-remote-og-redo').on('click', redoHistory);
+
+		// Capture a pre-edit snapshot when a control gains focus so field edits are undoable.
+		$('.wp-remote-og-controls').on('focusin', 'input, select', function () {
+			state.preEditSnapshot = snapshotTemplate();
+		});
+		$('.wp-remote-og-controls').on('change', 'input, select', function () {
+			if (state.preEditSnapshot) {
+				pushHistory(state.preEditSnapshot);
+				state.preEditSnapshot = null;
+			}
+		});
+
+		initOverflowMenus();
+
+		$(document).on('keydown.wpRemoteOgEditor', function (event) {
+			var key = event.key ? event.key.toLowerCase() : '';
+			if (!(event.ctrlKey || event.metaKey) || 'z' !== key && 'y' !== key) {
+				return;
+			}
+			var tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
+			if ('input' === tag || 'textarea' === tag || 'select' === tag) {
+				return;
+			}
+			event.preventDefault();
+			if ('y' === key || (event.shiftKey && 'z' === key)) {
+				redoHistory();
+			} else {
+				undoHistory();
+			}
+		});
+
 		rebuildTokenPicker();
 		$(window).on('resize', applyCanvasScale);
 
+		markDirty(false);
 		renderLayerList();
 		renderCanvas();
 		fillControls(currentLayer());
+		updateHistoryButtons();
 		state.ready = true;
+	}
+
+	function closeOverflowMenus(except) {
+		$('.wpog-overflow').each(function () {
+			if (except && this === except) {
+				return;
+			}
+			$(this).find('.wpog-overflow-menu').prop('hidden', true);
+			$(this).find('[data-overflow-toggle]').attr('aria-expanded', 'false');
+		});
+	}
+
+	function initOverflowMenus() {
+		$(document).on('click', '[data-overflow-toggle]', function (event) {
+			event.preventDefault();
+			event.stopPropagation();
+			var wrap = $(this).closest('.wpog-overflow');
+			var menu = wrap.find('.wpog-overflow-menu');
+			var willOpen = menu.prop('hidden');
+			closeOverflowMenus(wrap[0]);
+			menu.prop('hidden', !willOpen);
+			$(this).attr('aria-expanded', willOpen ? 'true' : 'false');
+		});
+		$(document).on('click', '.wpog-overflow-item', function () {
+			closeOverflowMenus();
+		});
+		$(document).on('click.wpRemoteOgOverflow', function (event) {
+			if (!$(event.target).closest('.wpog-overflow').length) {
+				closeOverflowMenus();
+			}
+		});
+		$(document).on('keydown.wpRemoteOgOverflow', function (event) {
+			if ('Escape' === event.key) {
+				closeOverflowMenus();
+			}
+		});
 	}
 
 	function initFields() {

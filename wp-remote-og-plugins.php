@@ -3009,6 +3009,35 @@ final class WP_Remote_OG_Admin {
 	}
 
 	/**
+	 * Inline SVG icon set (no external icon fonts/assets).
+	 *
+	 * @param string $name Icon key.
+	 * @return string
+	 */
+	public static function icon( $name ) {
+		$open  = '<svg class="wpog-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">';
+		$paths = array(
+			'save'    => '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
+			'undo'    => '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
+			'redo'    => '<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/>',
+			'plus'    => '<path d="M12 5v14M5 12h14"/>',
+			'gear'    => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+			'refresh' => '<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+			'link'    => '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+			'more'    => '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+			'text'    => '<path d="M4 7V5h16v2M9 5v14M7 19h4"/>',
+			'image'   => '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+			'line'    => '<path d="M4 12h16"/>',
+			'chevron' => '<path d="M6 9l6 6 6-6"/>',
+			'copy'    => '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+			'trash'   => '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+		);
+
+		$path = isset( $paths[ $name ] ) ? $paths[ $name ] : '';
+		return $open . $path . '</svg>';
+	}
+
+	/**
 	 * Small status badge helper.
 	 *
 	 * @param bool   $ok   Positive state.
@@ -3331,37 +3360,66 @@ final class WP_Remote_OG_Admin {
 		$fields   = WP_Remote_OG_Plugin::get_dynamic_fields();
 		$fonts    = WP_Remote_OG_Plugin::get_fonts();
 		$posts    = self::post_choices();
+		$export_url = wp_nonce_url( admin_url( 'admin-post.php?action=wp_remote_og_export_template' ), 'wp_remote_og_export_template' );
 		?>
-		<?php self::page_open( 'wp-remote-og-editor', __( 'Template Editor', 'wp-remote-og-plugins' ), __( 'Design the layout used to generate a branded social preview image for every post.', 'wp-remote-og-plugins' ) ); ?>
+		<div class="wrap wp-remote-og-app wp-remote-og-admin wp-remote-og-editor-page">
+			<?php self::render_shell( 'wp-remote-og-editor' ); ?>
 
-			<div class="wp-remote-og-editor" data-template="<?php echo esc_attr( wp_json_encode( $template ) ); ?>">
-					<div class="wp-remote-og-toolbar">
-						<button type="button" class="button button-primary" id="wp-remote-og-save-template"><?php esc_html_e( 'Save Template', 'wp-remote-og-plugins' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-add-layer"><?php esc_html_e( 'Add Text Layer', 'wp-remote-og-plugins' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-add-image-layer"><?php esc_html_e( 'Add Image Layer', 'wp-remote-og-plugins' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-add-horizontal-line"><?php esc_html_e( 'Add Horizontal Line', 'wp-remote-og-plugins' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-add-vertical-line"><?php esc_html_e( 'Add Vertical Line', 'wp-remote-og-plugins' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-background"><?php esc_html_e( 'Select Background', 'wp-remote-og-plugins' ); ?></button>
-						<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=wp_remote_og_export_template' ), 'wp_remote_og_export_template' ) ); ?>"><?php esc_html_e( 'Export Template', 'wp-remote-og-plugins' ); ?></a>
-						<form class="wp-remote-og-import-template" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" enctype="multipart/form-data">
-							<input type="hidden" name="action" value="wp_remote_og_import_template">
-							<?php wp_nonce_field( 'wp_remote_og_import_template', 'wp_remote_og_import_nonce' ); ?>
-							<label class="screen-reader-text" for="wp-remote-og-import-file"><?php esc_html_e( 'Import template JSON', 'wp-remote-og-plugins' ); ?></label>
-							<input type="file" id="wp-remote-og-import-file" name="wp_remote_og_template_file" accept="application/json,.json" required>
-							<button type="submit" class="button"><?php esc_html_e( 'Import Template', 'wp-remote-og-plugins' ); ?></button>
-						</form>
-					<label for="wp-remote-og-preview-post"><?php esc_html_e( 'Preview post', 'wp-remote-og-plugins' ); ?></label>
-					<select id="wp-remote-og-preview-post">
-						<option value=""><?php esc_html_e( 'Select a post', 'wp-remote-og-plugins' ); ?></option>
+			<div class="wpog-editor-bar">
+				<div class="wpog-editor-bar-left">
+					<h1 class="wpog-editor-title"><?php esc_html_e( 'Template Editor', 'wp-remote-og-plugins' ); ?></h1>
+					<span class="wpog-dirty" id="wp-remote-og-dirty-indicator" data-saved-label="<?php esc_attr_e( 'All changes saved', 'wp-remote-og-plugins' ); ?>" data-unsaved-label="<?php esc_attr_e( 'Unsaved changes', 'wp-remote-og-plugins' ); ?>"><?php esc_html_e( 'All changes saved', 'wp-remote-og-plugins' ); ?></span>
+				</div>
+				<div class="wpog-editor-bar-right">
+					<label class="screen-reader-text" for="wp-remote-og-preview-post"><?php esc_html_e( 'Preview post', 'wp-remote-og-plugins' ); ?></label>
+					<select id="wp-remote-og-preview-post" class="wpog-preview-select">
+						<option value=""><?php esc_html_e( 'Use a post to preview…', 'wp-remote-og-plugins' ); ?></option>
 						<?php foreach ( $posts as $post ) : ?>
 							<option value="<?php echo esc_attr( $post['id'] ); ?>"><?php echo esc_html( $post['title'] ); ?></option>
 						<?php endforeach; ?>
 					</select>
-					<button type="button" class="button" id="wp-remote-og-refresh-preview"><?php esc_html_e( 'Refresh Preview', 'wp-remote-og-plugins' ); ?></button>
+					<button type="button" class="wpog-icon-btn" id="wp-remote-og-refresh-preview" title="<?php esc_attr_e( 'Refresh preview', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Refresh preview', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'refresh' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+					<div class="wpog-overflow" data-overflow>
+						<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'More actions', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'More actions', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'more' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+						<div class="wpog-overflow-menu" hidden>
+							<button type="button" class="wpog-overflow-item" id="wp-remote-og-background"><?php esc_html_e( 'Select background image', 'wp-remote-og-plugins' ); ?></button>
+							<a class="wpog-overflow-item" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export template (JSON)', 'wp-remote-og-plugins' ); ?></a>
+							<form class="wp-remote-og-import-template wpog-overflow-import" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" enctype="multipart/form-data">
+								<input type="hidden" name="action" value="wp_remote_og_import_template">
+								<?php wp_nonce_field( 'wp_remote_og_import_template', 'wp_remote_og_import_nonce' ); ?>
+								<label class="wpog-overflow-item-label" for="wp-remote-og-import-file"><?php esc_html_e( 'Import template', 'wp-remote-og-plugins' ); ?></label>
+								<input type="file" id="wp-remote-og-import-file" name="wp_remote_og_template_file" accept="application/json,.json" required>
+								<button type="submit" class="button button-small"><?php esc_html_e( 'Import', 'wp-remote-og-plugins' ); ?></button>
+							</form>
+						</div>
+					</div>
+					<button type="button" class="button button-primary wpog-save-btn" id="wp-remote-og-save-template"><?php echo self::icon( 'save' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span><?php esc_html_e( 'Save', 'wp-remote-og-plugins' ); ?></span></button>
 				</div>
+			</div>
 
-				<div class="wp-remote-og-editor-grid">
-					<section class="wp-remote-og-canvas-panel">
+			<div class="wp-remote-og-editor" data-template="<?php echo esc_attr( wp_json_encode( $template ) ); ?>">
+				<div class="wpog-workspace">
+					<aside class="wpog-panel wpog-panel-left">
+						<div class="wpog-panel-head">
+							<span class="wpog-panel-title"><?php esc_html_e( 'Structure', 'wp-remote-og-plugins' ); ?></span>
+							<div class="wpog-panel-tools">
+								<div class="wpog-overflow wpog-add-wrap" data-overflow>
+									<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'Add layer', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Add layer', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'plus' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+									<div class="wpog-overflow-menu" hidden>
+										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-layer"><?php echo self::icon( 'text' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Text layer', 'wp-remote-og-plugins' ); ?></button>
+										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-image-layer"><?php echo self::icon( 'image' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Image layer', 'wp-remote-og-plugins' ); ?></button>
+										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-horizontal-line"><?php echo self::icon( 'line' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Horizontal line', 'wp-remote-og-plugins' ); ?></button>
+										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-vertical-line"><?php echo self::icon( 'line' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Vertical line', 'wp-remote-og-plugins' ); ?></button>
+									</div>
+								</div>
+								<button type="button" class="wpog-icon-btn" id="wp-remote-og-undo" title="<?php esc_attr_e( 'Undo', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Undo', 'wp-remote-og-plugins' ); ?>" disabled><?php echo self::icon( 'undo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+								<button type="button" class="wpog-icon-btn" id="wp-remote-og-redo" title="<?php esc_attr_e( 'Redo', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Redo', 'wp-remote-og-plugins' ); ?>" disabled><?php echo self::icon( 'redo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+							</div>
+						</div>
+						<ul id="wp-remote-og-layer-list" class="wp-remote-og-layer-list" role="listbox" aria-label="<?php esc_attr_e( 'Layers', 'wp-remote-og-plugins' ); ?>"></ul>
+					</aside>
+
+					<section class="wpog-canvas-zone">
 						<div class="wp-remote-og-canvas-frame">
 							<div id="wp-remote-og-canvas" class="wp-remote-og-canvas" aria-label="<?php esc_attr_e( 'OG image canvas', 'wp-remote-og-plugins' ); ?>">
 								<div class="wp-remote-og-safe-area"></div>
@@ -3371,110 +3429,146 @@ final class WP_Remote_OG_Admin {
 						<div class="wp-remote-og-preview-warnings" id="wp-remote-og-preview-warnings"></div>
 					</section>
 
-					<aside class="wp-remote-og-side-panel">
-						<h2><?php esc_html_e( 'Layer List', 'wp-remote-og-plugins' ); ?></h2>
-						<ul id="wp-remote-og-layer-list" class="wp-remote-og-layer-list"></ul>
+					<aside class="wpog-panel wpog-panel-right">
+						<div class="wp-remote-og-controls wpog-inspector">
+							<div class="wpog-inspector-empty" id="wp-remote-og-inspector-empty"><?php esc_html_e( 'Select a layer to edit its properties.', 'wp-remote-og-plugins' ); ?></div>
+							<div class="wpog-inspector-body" id="wp-remote-og-inspector-body">
+								<div class="wpog-inspector-head">
+									<span class="wpog-inspector-name" id="wp-remote-og-inspector-name"></span>
+									<div class="wpog-overflow wpog-inspector-overflow" data-overflow>
+										<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'Layer actions', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Layer actions', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'more' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+										<div class="wpog-overflow-menu" hidden>
+											<button type="button" class="wpog-overflow-item" id="wp-remote-og-duplicate-layer"><?php echo self::icon( 'copy' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Duplicate layer', 'wp-remote-og-plugins' ); ?></button>
+											<button type="button" class="wpog-overflow-item is-danger" id="wp-remote-og-delete-layer"><?php echo self::icon( 'trash' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Delete layer', 'wp-remote-og-plugins' ); ?></button>
+										</div>
+									</div>
+								</div>
 
-						<h2><?php esc_html_e( 'Layer Controls', 'wp-remote-og-plugins' ); ?></h2>
-						<div class="wp-remote-og-controls">
-							<label><?php esc_html_e( 'Layer type', 'wp-remote-og-plugins' ); ?>
-								<select id="wp-remote-og-layer-type">
-									<option value="text"><?php esc_html_e( 'Text Layer', 'wp-remote-og-plugins' ); ?></option>
-									<option value="image"><?php esc_html_e( 'Image Layer', 'wp-remote-og-plugins' ); ?></option>
-									<option value="line"><?php esc_html_e( 'Line Layer', 'wp-remote-og-plugins' ); ?></option>
-								</select>
-							</label>
-							<div class="wp-remote-og-content-controls">
-								<label><?php esc_html_e( 'Content / token', 'wp-remote-og-plugins' ); ?><input type="text" id="wp-remote-og-layer-content"></label>
-								<label><?php esc_html_e( 'Insert dynamic field', 'wp-remote-og-plugins' ); ?>
-									<select id="wp-remote-og-token-picker">
-										<option value=""><?php esc_html_e( 'Choose token', 'wp-remote-og-plugins' ); ?></option>
-										<?php foreach ( $fields as $field ) : ?>
-											<?php if ( empty( $field['enabled'] ) ) { continue; } ?>
-										<option value="<?php echo esc_attr( $field['token'] ); ?>"><?php echo esc_html( $field['label'] . ' — ' . $field['token'] ); ?></option>
-										<?php endforeach; ?>
-									</select>
-								</label>
+								<details class="wpog-section" open>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Content & Tokens', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<div class="wpog-section-body">
+										<label><?php esc_html_e( 'Layer type', 'wp-remote-og-plugins' ); ?>
+											<select id="wp-remote-og-layer-type">
+												<option value="text"><?php esc_html_e( 'Text Layer', 'wp-remote-og-plugins' ); ?></option>
+												<option value="image"><?php esc_html_e( 'Image Layer', 'wp-remote-og-plugins' ); ?></option>
+												<option value="line"><?php esc_html_e( 'Line Layer', 'wp-remote-og-plugins' ); ?></option>
+											</select>
+										</label>
+										<div class="wp-remote-og-content-controls">
+											<label><?php esc_html_e( 'Content / token', 'wp-remote-og-plugins' ); ?><input type="text" id="wp-remote-og-layer-content"></label>
+											<label><?php esc_html_e( 'Insert dynamic field', 'wp-remote-og-plugins' ); ?>
+												<select id="wp-remote-og-token-picker">
+													<option value=""><?php esc_html_e( 'Choose token', 'wp-remote-og-plugins' ); ?></option>
+													<?php foreach ( $fields as $field ) : ?>
+														<?php if ( empty( $field['enabled'] ) ) { continue; } ?>
+													<option value="<?php echo esc_attr( $field['token'] ); ?>"><?php echo esc_html( $field['label'] . ' — ' . $field['token'] ); ?></option>
+													<?php endforeach; ?>
+												</select>
+											</label>
+										</div>
+										<div class="wp-remote-og-visibility-controls">
+											<label><?php esc_html_e( 'Show layer only when', 'wp-remote-og-plugins' ); ?>
+												<select id="wp-remote-og-layer-requires-token">
+													<option value=""><?php esc_html_e( 'Always show', 'wp-remote-og-plugins' ); ?></option>
+													<?php foreach ( $fields as $field ) : ?>
+														<?php if ( empty( $field['enabled'] ) ) { continue; } ?>
+													<option value="<?php echo esc_attr( $field['token'] ); ?>"><?php echo esc_html( $field['label'] . ' — ' . $field['token'] ); ?></option>
+													<?php endforeach; ?>
+												</select>
+											</label>
+										</div>
+									</div>
+								</details>
+
+								<details class="wpog-section wp-remote-og-text-controls" open>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Typography', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<div class="wpog-section-body">
+										<label><?php esc_html_e( 'Font', 'wp-remote-og-plugins' ); ?>
+											<select id="wp-remote-og-layer-font">
+												<option value=""><?php esc_html_e( 'System font', 'wp-remote-og-plugins' ); ?></option>
+												<?php foreach ( $fonts as $font ) : ?>
+													<option value="<?php echo esc_attr( $font['id'] ); ?>"><?php echo esc_html( $font['label'] ); ?><?php echo empty( $font['renderable'] ) ? esc_html__( ' (preview only)', 'wp-remote-og-plugins' ): ''; ?></option>
+												<?php endforeach; ?>
+											</select>
+										</label>
+										<div class="wp-remote-og-control-row">
+											<label><?php esc_html_e( 'Font size', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-font-size" min="8" max="180"></label>
+											<label><?php esc_html_e( 'Min size', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-min-font-size" min="6" max="180"></label>
+										</div>
+										<label><?php esc_html_e( 'Align', 'wp-remote-og-plugins' ); ?>
+											<select id="wp-remote-og-layer-align">
+												<option value="left"><?php esc_html_e( 'Left', 'wp-remote-og-plugins' ); ?></option>
+												<option value="center"><?php esc_html_e( 'Center', 'wp-remote-og-plugins' ); ?></option>
+												<option value="right"><?php esc_html_e( 'Right', 'wp-remote-og-plugins' ); ?></option>
+											</select>
+										</label>
+										<div class="wp-remote-og-control-row">
+											<label><?php esc_html_e( 'Line height', 'wp-remote-og-plugins' ); ?><input type="number" step="0.05" id="wp-remote-og-layer-line-height" min="0.8" max="2.5"></label>
+											<label><?php esc_html_e( 'Max lines', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-max-lines" min="1" max="12"></label>
+										</div>
+									</div>
+								</details>
+
+								<details class="wpog-section wp-remote-og-image-controls">
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Image', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<div class="wpog-section-body">
+										<button type="button" class="button button-secondary" id="wp-remote-og-layer-select-image"><?php esc_html_e( 'Select image', 'wp-remote-og-plugins' ); ?></button>
+										<label><?php esc_html_e( 'Shape', 'wp-remote-og-plugins' ); ?>
+											<select id="wp-remote-og-layer-image-shape">
+												<option value="square"><?php esc_html_e( 'Square', 'wp-remote-og-plugins' ); ?></option>
+												<option value="rounded"><?php esc_html_e( 'Rounded', 'wp-remote-og-plugins' ); ?></option>
+												<option value="circle"><?php esc_html_e( 'Circle', 'wp-remote-og-plugins' ); ?></option>
+											</select>
+										</label>
+										<label><?php esc_html_e( 'Fit', 'wp-remote-og-plugins' ); ?>
+											<select id="wp-remote-og-layer-image-fit">
+												<option value="contain"><?php esc_html_e( 'Contain', 'wp-remote-og-plugins' ); ?></option>
+												<option value="cover"><?php esc_html_e( 'Cover', 'wp-remote-og-plugins' ); ?></option>
+												<option value="stretch"><?php esc_html_e( 'Stretch', 'wp-remote-og-plugins' ); ?></option>
+											</select>
+										</label>
+									</div>
+								</details>
+
+								<details class="wpog-section wp-remote-og-line-controls">
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Line', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<div class="wpog-section-body">
+										<label><?php esc_html_e( 'Direction', 'wp-remote-og-plugins' ); ?>
+											<select id="wp-remote-og-layer-line-orientation">
+												<option value="horizontal"><?php esc_html_e( 'Horizontal', 'wp-remote-og-plugins' ); ?></option>
+												<option value="vertical"><?php esc_html_e( 'Vertical', 'wp-remote-og-plugins' ); ?></option>
+											</select>
+										</label>
+									</div>
+								</details>
+
+								<details class="wpog-section" open>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Position & Size', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<div class="wpog-section-body">
+										<div class="wp-remote-og-control-row">
+											<label><?php esc_html_e( 'X', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-x" min="0" max="1200"></label>
+											<label><?php esc_html_e( 'Y', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-y" min="0" max="630"></label>
+										</div>
+										<div class="wp-remote-og-control-row">
+											<label><?php esc_html_e( 'Width', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-width" min="20" max="1200"></label>
+											<label><?php esc_html_e( 'Height', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-height" min="20" max="630"></label>
+										</div>
+									</div>
+								</details>
+
+								<details class="wpog-section wp-remote-og-color-controls" open>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Appearance', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<div class="wpog-section-body">
+										<label><?php esc_html_e( 'Color', 'wp-remote-og-plugins' ); ?><input type="text" id="wp-remote-og-layer-color" class="wp-remote-og-color" value="#111827"></label>
+									</div>
+								</details>
 							</div>
-							<div class="wp-remote-og-visibility-controls">
-								<label><?php esc_html_e( 'Show layer only when', 'wp-remote-og-plugins' ); ?>
-									<select id="wp-remote-og-layer-requires-token">
-										<option value=""><?php esc_html_e( 'Always show', 'wp-remote-og-plugins' ); ?></option>
-										<?php foreach ( $fields as $field ) : ?>
-											<?php if ( empty( $field['enabled'] ) ) { continue; } ?>
-										<option value="<?php echo esc_attr( $field['token'] ); ?>"><?php echo esc_html( $field['label'] . ' — ' . $field['token'] ); ?></option>
-										<?php endforeach; ?>
-									</select>
-								</label>
-							</div>
-							<div class="wp-remote-og-color-controls">
-								<label><?php esc_html_e( 'Color', 'wp-remote-og-plugins' ); ?><input type="text" id="wp-remote-og-layer-color" class="wp-remote-og-color" value="#111827"></label>
-							</div>
-							<div class="wp-remote-og-text-controls">
-								<label><?php esc_html_e( 'Font', 'wp-remote-og-plugins' ); ?>
-									<select id="wp-remote-og-layer-font">
-										<option value=""><?php esc_html_e( 'System font', 'wp-remote-og-plugins' ); ?></option>
-										<?php foreach ( $fonts as $font ) : ?>
-											<option value="<?php echo esc_attr( $font['id'] ); ?>"><?php echo esc_html( $font['label'] ); ?><?php echo empty( $font['renderable'] ) ? esc_html__( ' (preview only)', 'wp-remote-og-plugins' ): ''; ?></option>
-										<?php endforeach; ?>
-									</select>
-								</label>
-								<div class="wp-remote-og-control-row">
-									<label><?php esc_html_e( 'Font size', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-font-size" min="8" max="180"></label>
-									<label><?php esc_html_e( 'Min size', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-min-font-size" min="6" max="180"></label>
-								</div>
-								<label><?php esc_html_e( 'Align', 'wp-remote-og-plugins' ); ?>
-									<select id="wp-remote-og-layer-align">
-										<option value="left"><?php esc_html_e( 'Left', 'wp-remote-og-plugins' ); ?></option>
-										<option value="center"><?php esc_html_e( 'Center', 'wp-remote-og-plugins' ); ?></option>
-										<option value="right"><?php esc_html_e( 'Right', 'wp-remote-og-plugins' ); ?></option>
-									</select>
-								</label>
-								<div class="wp-remote-og-control-row">
-									<label><?php esc_html_e( 'Line height', 'wp-remote-og-plugins' ); ?><input type="number" step="0.05" id="wp-remote-og-layer-line-height" min="0.8" max="2.5"></label>
-									<label><?php esc_html_e( 'Max lines', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-max-lines" min="1" max="12"></label>
-								</div>
-							</div>
-							<div class="wp-remote-og-image-controls">
-									<button type="button" class="button button-secondary" id="wp-remote-og-layer-select-image"><?php esc_html_e( 'Select image', 'wp-remote-og-plugins' ); ?></button>
-									<label><?php esc_html_e( 'Shape', 'wp-remote-og-plugins' ); ?>
-										<select id="wp-remote-og-layer-image-shape">
-											<option value="square"><?php esc_html_e( 'Square', 'wp-remote-og-plugins' ); ?></option>
-											<option value="rounded"><?php esc_html_e( 'Rounded', 'wp-remote-og-plugins' ); ?></option>
-											<option value="circle"><?php esc_html_e( 'Circle', 'wp-remote-og-plugins' ); ?></option>
-										</select>
-									</label>
-									<label><?php esc_html_e( 'Fit', 'wp-remote-og-plugins' ); ?>
-										<select id="wp-remote-og-layer-image-fit">
-											<option value="contain"><?php esc_html_e( 'Contain', 'wp-remote-og-plugins' ); ?></option>
-											<option value="cover"><?php esc_html_e( 'Cover', 'wp-remote-og-plugins' ); ?></option>
-											<option value="stretch"><?php esc_html_e( 'Stretch', 'wp-remote-og-plugins' ); ?></option>
-										</select>
-									</label>
-								</div>
-							<div class="wp-remote-og-line-controls">
-								<label><?php esc_html_e( 'Direction', 'wp-remote-og-plugins' ); ?>
-									<select id="wp-remote-og-layer-line-orientation">
-										<option value="horizontal"><?php esc_html_e( 'Horizontal', 'wp-remote-og-plugins' ); ?></option>
-										<option value="vertical"><?php esc_html_e( 'Vertical', 'wp-remote-og-plugins' ); ?></option>
-									</select>
-								</label>
-							</div>
-							<div class="wp-remote-og-control-row">
-								<label><?php esc_html_e( 'X', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-x" min="0" max="1200"></label>
-								<label><?php esc_html_e( 'Y', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-y" min="0" max="630"></label>
-							</div>
-							<div class="wp-remote-og-control-row">
-								<label><?php esc_html_e( 'Width', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-width" min="20" max="1200"></label>
-								<label><?php esc_html_e( 'Height', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-height" min="20" max="630"></label>
-							</div>
-							<button type="button" class="button" id="wp-remote-og-delete-layer"><?php esc_html_e( 'Delete Layer', 'wp-remote-og-plugins' ); ?></button>
 						</div>
 					</aside>
 				</div>
 				<div id="wp-remote-og-status" class="wp-remote-og-status" aria-live="polite"></div>
 			</div>
-		<?php self::page_close(); ?>
+		</div>
 		<?php
 	}
 
