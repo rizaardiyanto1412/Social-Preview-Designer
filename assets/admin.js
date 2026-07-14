@@ -1021,6 +1021,9 @@
 
 	function fillControls(layer) {
 		state.suspendControls = true;
+		// Begin a fresh colour-edit session so the next genuine change records one
+		// history entry rather than one per picker move.
+		state.colorEditActive = false;
 		if (!layer) {
 			$('.wp-remote-og-controls input, .wp-remote-og-controls select').val('');
 			$('#wp-remote-og-layer-type').val('text');
@@ -1374,6 +1377,19 @@
 
 		$('.wp-remote-og-color').wpColorPicker({
 			change: function () {
+				// The picker fires this while fillControls() populates the swatch under
+				// suspendControls. Capture that state now: the deferred update below would
+				// otherwise run after suspendControls is reset and falsely mark dirty.
+				if (state.suspendControls) {
+					return;
+				}
+				// Record a single pre-edit history entry for a genuine colour change. The
+				// picker's native change event does not bubble to the delegated
+				// preEditSnapshot handler, so history is captured here instead.
+				if (!state.colorEditActive) {
+					pushHistory(snapshotTemplate());
+					state.colorEditActive = true;
+				}
 				setTimeout(updateSelectedLayerFromControls, 0);
 			}
 		});
