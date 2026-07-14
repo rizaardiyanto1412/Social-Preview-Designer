@@ -2698,21 +2698,98 @@ final class WP_Remote_OG_Admin {
 		exit;
 	}
 
-	private static function tabs( $active ) {
-		$tabs = array(
-			'wp-remote-og'             => __( 'Template Editor', 'wp-remote-og-plugins' ),
-			'wp-remote-og-fields'      => __( 'Dynamic Fields', 'wp-remote-og-plugins' ),
-			'wp-remote-og-fonts'       => __( 'Fonts', 'wp-remote-og-plugins' ),
-			'wp-remote-og-tools'       => __( 'Generation Tools', 'wp-remote-og-plugins' ),
-			'wp-remote-og-diagnostics' => __( 'Diagnostics', 'wp-remote-og-plugins' ),
+	/**
+	 * Ordered navigation definition shared by every plugin screen.
+	 *
+	 * @return array<int,array{slug:string,label:string}>
+	 */
+	private static function nav_items() {
+		return array(
+			array(
+				'slug'  => 'wp-remote-og',
+				'label' => __( 'Template Editor', 'wp-remote-og-plugins' ),
+			),
+			array(
+				'slug'  => 'wp-remote-og-fields',
+				'label' => __( 'Dynamic Fields', 'wp-remote-og-plugins' ),
+			),
+			array(
+				'slug'  => 'wp-remote-og-fonts',
+				'label' => __( 'Fonts', 'wp-remote-og-plugins' ),
+			),
+			array(
+				'slug'  => 'wp-remote-og-tools',
+				'label' => __( 'Generation Tools', 'wp-remote-og-plugins' ),
+			),
+			array(
+				'slug'  => 'wp-remote-og-diagnostics',
+				'label' => __( 'Diagnostics', 'wp-remote-og-plugins' ),
+			),
 		);
+	}
 
-		echo '<nav class="nav-tab-wrapper wp-remote-og-tabs">';
-		foreach ( $tabs as $slug => $label ) {
-			$class = $active === $slug ? ' nav-tab-active' : '';
-			echo '<a class="nav-tab' . esc_attr( $class ) . '" href="' . esc_url( admin_url( 'admin.php?page=' . $slug ) ) . '">' . esc_html( $label ) . '</a>';
+	/**
+	 * Inline SVG brand mark. No external assets.
+	 */
+	private static function brand_mark() {
+		return '<svg class="wpog-logo" width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><rect x="1.5" y="1.5" width="21" height="21" rx="5" fill="currentColor"/><rect x="5" y="12.5" width="14" height="6" rx="1.4" fill="#ffffff" opacity="0.92"/><circle cx="8.5" cy="8" r="2.4" fill="#ffffff"/><path d="M13 11l3-3 3 3" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+	}
+
+	/**
+	 * Render the shared application shell header (brand + nav pills).
+	 *
+	 * @param string $active Active page slug.
+	 */
+	private static function render_shell( $active ) {
+		echo '<div class="wpog-shell">';
+		echo '<div class="wpog-shell-brand"><span class="wpog-logo-wrap" aria-hidden="true">' . self::brand_mark() . '</span><span class="wpog-shell-name">' . esc_html__( 'Social Preview Designer', 'wp-remote-og-plugins' ) . '</span></div>';
+		echo '<nav class="wpog-nav" aria-label="' . esc_attr__( 'Social Preview Designer sections', 'wp-remote-og-plugins' ) . '">';
+		foreach ( self::nav_items() as $item ) {
+			$is_active = $active === $item['slug'];
+			echo '<a class="wpog-nav-pill' . ( $is_active ? ' is-active' : '' ) . '"' . ( $is_active ? ' aria-current="page"' : '' ) . ' href="' . esc_url( admin_url( 'admin.php?page=' . $item['slug'] ) ) . '">' . esc_html( $item['label'] ) . '</a>';
 		}
 		echo '</nav>';
+		echo '</div>';
+	}
+
+	/**
+	 * Open a standard plugin page: shell + page header with optional actions.
+	 *
+	 * @param string $active   Active nav slug.
+	 * @param string $title    Page title.
+	 * @param string $subtitle Optional descriptive subtitle.
+	 * @param string $actions  Optional pre-escaped HTML for the primary action area.
+	 */
+	private static function page_open( $active, $title, $subtitle = '', $actions = '' ) {
+		echo '<div class="wrap wp-remote-og-app wp-remote-og-admin">';
+		self::render_shell( $active );
+		echo '<div class="wpog-page-head">';
+		echo '<div class="wpog-page-head-text">';
+		echo '<h1 class="wpog-page-title">' . esc_html( $title ) . '</h1>';
+		if ( '' !== $subtitle ) {
+			echo '<p class="wpog-page-sub">' . esc_html( $subtitle ) . '</p>';
+		}
+		echo '</div>';
+		echo '<div class="wpog-page-actions" id="wpog-page-actions">' . $actions . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- caller supplies pre-escaped markup.
+		echo '</div>';
+		echo '<div class="wpog-page-body">';
+	}
+
+	private static function page_close() {
+		echo '</div></div>';
+	}
+
+	/**
+	 * Small status badge helper.
+	 *
+	 * @param bool   $ok   Positive state.
+	 * @param string $good Text when positive.
+	 * @param string $bad  Text when negative.
+	 * @param string $tone Optional tone override for the negative state (warn|bad).
+	 */
+	private static function badge( $ok, $good, $bad, $tone = 'bad' ) {
+		$class = $ok ? 'is-good' : ( 'warn' === $tone ? 'is-warn' : 'is-bad' );
+		return '<span class="wpog-badge ' . esc_attr( $class ) . '">' . esc_html( $ok ? $good : $bad ) . '</span>';
 	}
 
 	public static function render_template_page() {
@@ -2725,9 +2802,7 @@ final class WP_Remote_OG_Admin {
 		$fonts    = WP_Remote_OG_Plugin::get_fonts();
 		$posts    = self::post_choices();
 		?>
-		<div class="wrap wp-remote-og-admin">
-			<h1><?php esc_html_e( 'Social Preview Designer — Template Editor', 'wp-remote-og-plugins' ); ?></h1>
-			<?php self::tabs( 'wp-remote-og' ); ?>
+		<?php self::page_open( 'wp-remote-og', __( 'Template Editor', 'wp-remote-og-plugins' ), __( 'Design the layout used to generate a branded social preview image for every post.', 'wp-remote-og-plugins' ) ); ?>
 
 			<div class="wp-remote-og-editor" data-template="<?php echo esc_attr( wp_json_encode( $template ) ); ?>">
 					<div class="wp-remote-og-toolbar">
@@ -2869,7 +2944,7 @@ final class WP_Remote_OG_Admin {
 				</div>
 				<div id="wp-remote-og-status" class="wp-remote-og-status" aria-live="polite"></div>
 			</div>
-		</div>
+		<?php self::page_close(); ?>
 		<?php
 	}
 
@@ -2878,17 +2953,20 @@ final class WP_Remote_OG_Admin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
 		}
 
+		$saved_notice = '';
 		if ( isset( $_POST['wp_remote_og_fields_nonce'] ) && check_admin_referer( 'wp_remote_og_dynamic_fields', 'wp_remote_og_fields_nonce' ) ) {
 			$fields = isset( $_POST['fields'] ) && is_array( $_POST['fields'] ) ? map_deep( wp_unslash( $_POST['fields'] ), 'sanitize_text_field' ) : array();
 			WP_Remote_OG_Plugin::save_dynamic_fields( $fields );
-			echo '<div class="notice notice-success"><p>' . esc_html__( 'Dynamic fields saved.', 'wp-remote-og-plugins' ) . '</p></div>';
+			$saved_notice = __( 'Dynamic fields saved.', 'wp-remote-og-plugins' );
 		}
 
 		$fields = WP_Remote_OG_Plugin::get_dynamic_fields();
+		self::page_open( 'wp-remote-og-fields', __( 'Dynamic Fields', 'wp-remote-og-plugins' ), __( 'Map reusable tokens to post data so every generated image stays on-brand.', 'wp-remote-og-plugins' ) );
+		if ( '' !== $saved_notice ) {
+			echo '<div class="wpog-notice is-success"><p>' . esc_html( $saved_notice ) . '</p></div>';
+		}
 		?>
-		<div class="wrap wp-remote-og-admin">
-			<h1><?php esc_html_e( 'Dynamic Fields', 'wp-remote-og-plugins' ); ?></h1>
-			<?php self::tabs( 'wp-remote-og-fields' ); ?>
+			<div class="wpog-card">
 			<form method="post" id="wp-remote-og-fields-form">
 				<?php wp_nonce_field( 'wp_remote_og_dynamic_fields', 'wp_remote_og_fields_nonce' ); ?>
 				<table class="widefat striped wp-remote-og-fields-table">
@@ -2912,8 +2990,9 @@ final class WP_Remote_OG_Admin {
 				</p>
 				<?php submit_button( __( 'Save Dynamic Fields', 'wp-remote-og-plugins' ) ); ?>
 			</form>
-		</div>
+			</div>
 		<?php
+		self::page_close();
 	}
 
 	public static function render_fonts_page() {
@@ -2921,16 +3000,17 @@ final class WP_Remote_OG_Admin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
 		}
 
+		$notices = array();
 		if ( isset( $_POST['wp_remote_og_font_nonce'] ) && check_admin_referer( 'wp_remote_og_upload_font', 'wp_remote_og_font_nonce' ) ) {
 			if ( ! current_user_can( 'upload_files' ) ) {
-				echo '<div class="notice notice-error"><p>' . esc_html__( 'You do not have permission to upload files.', 'wp-remote-og-plugins' ) . '</p></div>';
+				$notices[] = array( 'error', __( 'You do not have permission to upload files.', 'wp-remote-og-plugins' ) );
 			} else {
 				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- upload is verified with is_uploaded_file() and wp_check_filetype_and_ext() in upload_from_request().
 				$result = WP_Remote_OG_Fonts::upload_from_request( isset( $_FILES['wp_remote_og_font'] ) ? $_FILES['wp_remote_og_font'] : array() );
 				if ( is_wp_error( $result ) ) {
-					echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+					$notices[] = array( 'error', $result->get_error_message() );
 				} else {
-					echo '<div class="notice notice-success"><p>' . esc_html__( 'Font uploaded.', 'wp-remote-og-plugins' ) . '</p></div>';
+					$notices[] = array( 'success', __( 'Font uploaded.', 'wp-remote-og-plugins' ) );
 				}
 			}
 		}
@@ -2940,17 +3020,20 @@ final class WP_Remote_OG_Admin {
 				isset( $_POST['wp_remote_og_google_font_family'] ) ? sanitize_text_field( wp_unslash( $_POST['wp_remote_og_google_font_family'] ) ) : ''
 			);
 			if ( is_wp_error( $result ) ) {
-				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+				$notices[] = array( 'error', $result->get_error_message() );
 			} else {
-				echo '<div class="notice notice-success"><p>' . esc_html__( 'Google Font added.', 'wp-remote-og-plugins' ) . '</p></div>';
+				$notices[] = array( 'success', __( 'Google Font added.', 'wp-remote-og-plugins' ) );
 			}
 		}
 
 		$fonts = WP_Remote_OG_Plugin::get_fonts();
+		self::page_open( 'wp-remote-og-fonts', __( 'Fonts', 'wp-remote-og-plugins' ), __( 'Upload custom fonts or add Google Fonts to use in your template text layers.', 'wp-remote-og-plugins' ) );
+		foreach ( $notices as $notice ) {
+			echo '<div class="wpog-notice is-' . esc_attr( $notice[0] ) . '"><p>' . esc_html( $notice[1] ) . '</p></div>';
+		}
 		?>
-		<div class="wrap wp-remote-og-admin">
-			<h1><?php esc_html_e( 'Fonts', 'wp-remote-og-plugins' ); ?></h1>
-			<?php self::tabs( 'wp-remote-og-fonts' ); ?>
+			<div class="wpog-card">
+			<h2 class="wpog-card-title"><?php esc_html_e( 'Add a font', 'wp-remote-og-plugins' ); ?></h2>
 			<form method="post" enctype="multipart/form-data" class="wp-remote-og-font-upload">
 				<?php wp_nonce_field( 'wp_remote_og_upload_font', 'wp_remote_og_font_nonce' ); ?>
 				<input type="file" name="wp_remote_og_font" accept=".ttf,.otf,.woff,.woff2" required>
@@ -2992,6 +3075,9 @@ final class WP_Remote_OG_Admin {
 				</p>
 				<?php submit_button( __( 'Add Google Font', 'wp-remote-og-plugins' ), 'secondary', 'submit_google_font', false ); ?>
 			</form>
+			</div>
+			<div class="wpog-card">
+			<h2 class="wpog-card-title"><?php esc_html_e( 'Available fonts', 'wp-remote-og-plugins' ); ?></h2>
 			<table class="widefat striped">
 				<thead><tr><th><?php esc_html_e( 'Font', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'File', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Server Rendering', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Uploaded', 'wp-remote-og-plugins' ); ?></th></tr></thead>
 				<tbody>
@@ -3012,8 +3098,9 @@ final class WP_Remote_OG_Admin {
 				<?php endforeach; ?>
 				</tbody>
 			</table>
-		</div>
+			</div>
 		<?php
+		self::page_close();
 	}
 
 	public static function render_tools_page() {
@@ -3023,20 +3110,22 @@ final class WP_Remote_OG_Admin {
 
 		$log = get_option( WP_Remote_OG_Plugin::OPTION_GENERATION_LOG, array() );
 		$log = is_array( $log ) ? array_reverse( $log ) : array();
+		self::page_open( 'wp-remote-og-tools', __( 'Generation Tools', 'wp-remote-og-plugins' ), __( 'Bulk generate, regenerate, and clean up the social preview images across your posts.', 'wp-remote-og-plugins' ) );
 		?>
-		<div class="wrap wp-remote-og-admin">
-			<h1><?php esc_html_e( 'Generation Tools', 'wp-remote-og-plugins' ); ?></h1>
-			<?php self::tabs( 'wp-remote-og-tools' ); ?>
 			<?php if ( get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ) ) : ?>
-				<div class="notice notice-info inline"><p><strong><?php esc_html_e( 'Template changed. Regenerate all existing OG images now?', 'wp-remote-og-plugins' ); ?></strong></p></div>
+				<div class="wpog-notice is-info"><p><strong><?php esc_html_e( 'Template changed. Regenerate all existing OG images now?', 'wp-remote-og-plugins' ); ?></strong></p></div>
 			<?php endif; ?>
+			<div class="wpog-card">
+			<h2 class="wpog-card-title"><?php esc_html_e( 'Actions', 'wp-remote-og-plugins' ); ?></h2>
 			<div class="wp-remote-og-tool-actions">
 				<button type="button" class="button button-primary wp-remote-og-bulk" data-mode="all"><?php esc_html_e( 'Regenerate OG Images for All Posts', 'wp-remote-og-plugins' ); ?></button>
 				<button type="button" class="button wp-remote-og-bulk" data-mode="missing"><?php esc_html_e( 'Regenerate Missing OG Images Only', 'wp-remote-og-plugins' ); ?></button>
 				<button type="button" class="button" id="wp-remote-og-cleanup-orphans"><?php esc_html_e( 'Delete Orphaned OG Images', 'wp-remote-og-plugins' ); ?></button>
 			</div>
 			<div class="wp-remote-og-progress" id="wp-remote-og-progress" aria-live="polite"></div>
-			<h2><?php esc_html_e( 'Generation Log', 'wp-remote-og-plugins' ); ?></h2>
+			</div>
+			<div class="wpog-card">
+			<h2 class="wpog-card-title"><?php esc_html_e( 'Generation Log', 'wp-remote-og-plugins' ); ?></h2>
 			<table class="widefat striped">
 				<thead><tr><th><?php esc_html_e( 'Time', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Post', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Status', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Message', 'wp-remote-og-plugins' ); ?></th></tr></thead>
 				<tbody>
@@ -3053,8 +3142,9 @@ final class WP_Remote_OG_Admin {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
-		</div>
+			</div>
 		<?php
+		self::page_close();
 	}
 
 	public static function render_diagnostics_page() {
@@ -3063,26 +3153,26 @@ final class WP_Remote_OG_Admin {
 		}
 
 		$diagnostics = WP_Remote_OG_Diagnostics::get();
+		self::page_open( 'wp-remote-og-diagnostics', __( 'Diagnostics', 'wp-remote-og-plugins' ), __( 'Check the rendering environment and image generation status at a glance.', 'wp-remote-og-plugins' ) );
 		?>
-		<div class="wrap wp-remote-og-admin">
-			<h1><?php esc_html_e( 'Diagnostics', 'wp-remote-og-plugins' ); ?></h1>
-			<?php self::tabs( 'wp-remote-og-diagnostics' ); ?>
+			<div class="wpog-card">
 			<table class="widefat striped wp-remote-og-diagnostics">
 				<tbody>
-					<tr><th><?php esc_html_e( 'Imagick availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo $diagnostics['imagick'] ? esc_html__( 'Available', 'wp-remote-og-plugins' ): esc_html__( 'Unavailable', 'wp-remote-og-plugins' ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'GD availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo $diagnostics['gd'] ? esc_html__( 'Available', 'wp-remote-og-plugins' ): esc_html__( 'Unavailable', 'wp-remote-og-plugins' ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Rank Math availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo $diagnostics['rank_math'] ? esc_html__( 'Active', 'wp-remote-og-plugins' ): esc_html__( 'Inactive', 'wp-remote-og-plugins' ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'ACF availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo $diagnostics['acf'] ? esc_html__( 'Active', 'wp-remote-og-plugins' ): esc_html__( 'Inactive', 'wp-remote-og-plugins' ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Uploads directory', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['upload_dir'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Uploads writable', 'wp-remote-og-plugins' ); ?></th><td><?php echo $diagnostics['upload_writable'] ? esc_html__( 'Writable', 'wp-remote-og-plugins' ): esc_html__( 'Not writable', 'wp-remote-og-plugins' ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Imagick availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['imagick'], __( 'Available', 'wp-remote-og-plugins' ), __( 'Unavailable', 'wp-remote-og-plugins' ), 'warn' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
+					<tr><th><?php esc_html_e( 'GD availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['gd'], __( 'Available', 'wp-remote-og-plugins' ), __( 'Unavailable', 'wp-remote-og-plugins' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
+					<tr><th><?php esc_html_e( 'Rank Math availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['rank_math'], __( 'Active', 'wp-remote-og-plugins' ), __( 'Inactive', 'wp-remote-og-plugins' ), 'warn' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
+					<tr><th><?php esc_html_e( 'ACF availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['acf'], __( 'Active', 'wp-remote-og-plugins' ), __( 'Inactive', 'wp-remote-og-plugins' ), 'warn' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
+					<tr><th><?php esc_html_e( 'Uploads directory', 'wp-remote-og-plugins' ); ?></th><td><code><?php echo esc_html( $diagnostics['upload_dir'] ); ?></code></td></tr>
+					<tr><th><?php esc_html_e( 'Uploads writable', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['upload_writable'], __( 'Writable', 'wp-remote-og-plugins' ), __( 'Not writable', 'wp-remote-og-plugins' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
 					<tr><th><?php esc_html_e( 'Generated images', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['generated_count'] ); ?></td></tr>
 					<tr><th><?php esc_html_e( 'Missing images', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['missing_count'] ); ?></td></tr>
 					<tr><th><?php esc_html_e( 'Orphaned images', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['orphaned_count'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Last bulk result', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['last_bulk_result'] ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Last bulk result', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['last_bulk_result'] ? $diagnostics['last_bulk_result'] : __( 'No bulk run yet.', 'wp-remote-og-plugins' ) ); ?></td></tr>
 				</tbody>
 			</table>
-		</div>
+			</div>
 		<?php
+		self::page_close();
 	}
 
 	public static function add_meta_box() {
