@@ -1925,7 +1925,9 @@
 				shown++;
 				var card = $('<div/>', {
 					'class': 'wp-remote-og-preset-card',
-					'data-preset': preset.key
+					'data-preset': preset.key,
+					role: 'listitem',
+					'aria-label': preset.name + (preset.category ? ' (' + preset.category + ')' : '')
 				});
 				var thumb = $('<div/>', {
 					'class': 'wp-remote-og-preset-thumb'
@@ -1954,13 +1956,15 @@
 					type: 'button',
 					'class': 'button',
 					text: 'Preview',
-					'data-action': 'preview'
+					'data-action': 'preview',
+					'aria-label': 'Preview ' + preset.name + ' template'
 				}).appendTo(actions);
 				$('<button/>', {
 					type: 'button',
 					'class': 'button button-primary',
 					text: 'Apply',
-					'data-action': 'apply'
+					'data-action': 'apply',
+					'aria-label': 'Apply ' + preset.name + ' template'
 				}).appendTo(actions);
 				body.append(actions);
 				card.append(body);

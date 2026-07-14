@@ -2791,17 +2791,19 @@ final class WP_Remote_OG_Admin {
 	/**
 	 * Version string for a bundled asset.
 	 *
-	 * Uses the file modification time so browsers and edge caches (e.g. a CDN in
-	 * front of the site) fetch the current asset whenever it changes, instead of
-	 * serving a stale copy keyed on a static plugin version.
+	 * Deterministic: keyed on the plugin version constant rather than the file
+	 * modification time. filemtime is environment-dependent (it varies between
+	 * servers, deploys, and CDN origins for identical bytes), which produces
+	 * inconsistent cache keys across a multi-origin/CDN setup. Bumping
+	 * WP_REMOTE_OG_VERSION on release busts caches predictably for everyone.
 	 *
-	 * @param string $relative_path Path relative to the plugin directory.
+	 * @param string $relative_path Path relative to the plugin directory (unused,
+	 *                              kept for call-site clarity).
 	 * @return string
 	 */
 	private static function asset_version( $relative_path ) {
-		$file = WP_REMOTE_OG_DIR . ltrim( $relative_path, '/' );
-		$mtime = file_exists( $file ) ? filemtime( $file ) : 0;
-		return $mtime ? WP_REMOTE_OG_VERSION . '.' . $mtime : WP_REMOTE_OG_VERSION;
+		unset( $relative_path );
+		return WP_REMOTE_OG_VERSION;
 	}
 
 	public static function enqueue_assets( $hook ) {
@@ -2899,6 +2901,7 @@ final class WP_Remote_OG_Admin {
 				'missing_file' => __( 'No template file was uploaded.', 'wp-remote-og-plugins' ),
 				'upload_error' => __( 'The template file could not be uploaded.', 'wp-remote-og-plugins' ),
 				'read_error'   => __( 'The template file could not be read.', 'wp-remote-og-plugins' ),
+				'too_large'    => __( 'The template file is too large (maximum 1 MB).', 'wp-remote-og-plugins' ),
 				'json_error'   => __( 'The template file is not valid JSON.', 'wp-remote-og-plugins' ),
 				'empty_layers'  => __( 'The template file does not contain any layers.', 'wp-remote-og-plugins' ),
 			);
@@ -2975,6 +2978,15 @@ final class WP_Remote_OG_Admin {
 		$path = isset( $file['tmp_name'] ) ? (string) $file['tmp_name'] : '';
 		if ( '' === $path || ! is_uploaded_file( $path ) ) {
 			wp_safe_redirect( add_query_arg( 'wp_remote_og_import_error', 'read_error', $redirect ) );
+			exit;
+		}
+
+		// Conservative size guard before reading the file into memory. A template
+		// export is small JSON; anything over 1 MB is rejected outright.
+		$max_bytes = 1024 * 1024;
+		$size      = isset( $file['size'] ) ? (int) $file['size'] : (int) filesize( $path );
+		if ( $size <= 0 || $size > $max_bytes ) {
+			wp_safe_redirect( add_query_arg( 'wp_remote_og_import_error', 'too_large', $redirect ) );
 			exit;
 		}
 
@@ -3416,7 +3428,7 @@ final class WP_Remote_OG_Admin {
 				<button type="button" class="wpog-filter-pill" data-category="<?php echo esc_attr( $category ); ?>" aria-pressed="false"><?php echo esc_html( $category ); ?></button>
 			<?php endforeach; ?>
 		</div>
-		<div class="wp-remote-og-gallery" id="wp-remote-og-gallery"></div>
+		<div class="wp-remote-og-gallery" id="wp-remote-og-gallery" role="list" aria-label="<?php esc_attr_e( 'Template presets', 'wp-remote-og-plugins' ); ?>"></div>
 		<div class="wp-remote-og-preset-modal" id="wp-remote-og-preset-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-preset-modal-title" aria-describedby="wp-remote-og-preset-modal-desc" hidden>
 			<div class="wp-remote-og-preset-modal-backdrop" data-modal-close="1"></div>
 			<div class="wp-remote-og-preset-modal-panel">
