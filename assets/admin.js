@@ -2013,14 +2013,11 @@
 			if (!focusables.length) {
 				return;
 			}
-			var first = focusables[0];
-			var last = focusables[focusables.length - 1];
-			if (event.shiftKey && document.activeElement === first) {
+			var activeIndex = focusables.index(document.activeElement);
+			var target = ES.focusTrapTarget(focusables.length, activeIndex, event.shiftKey);
+			if (target > -1) {
 				event.preventDefault();
-				last.focus();
-			} else if (!event.shiftKey && document.activeElement === last) {
-				event.preventDefault();
-				first.focus();
+				focusables[target].focus();
 			}
 		});
 

@@ -1,0 +1,9 @@
+{
+  "name": "wp-remote-og-plugins",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Social Preview Designer editor-state unit tests.",
+  "scripts": {
+    "test": "node --test tests/js/*.test.js"
+  }
+}

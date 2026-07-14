@@ -175,6 +175,24 @@
 		};
 	}
 
+	/**
+	 * Focus-trap wrap target for a Tab / Shift+Tab press inside a modal.
+	 *
+	 * Given the number of focusable elements, the index of the currently
+	 * focused one, and whether Shift is held, returns the index to move focus
+	 * to when the trap needs to wrap, or -1 when the browser's default Tab
+	 * order should be left alone.
+	 */
+	function focusTrapTarget(count, activeIndex, shiftKey) {
+		if (count <= 0) {
+			return -1;
+		}
+		if (shiftKey) {
+			return activeIndex <= 0 ? count - 1 : -1;
+		}
+		return activeIndex >= count - 1 ? 0 : -1;
+	}
+
 	return {
 		HISTORY_LIMIT: HISTORY_LIMIT,
 		CANVAS_WIDTH: CANVAS_WIDTH,
@@ -189,6 +207,7 @@
 		computeMove: computeMove,
 		computeResize: computeResize,
 		geometryChanged: geometryChanged,
-		resolveSave: resolveSave
+		resolveSave: resolveSave,
+		focusTrapTarget: focusTrapTarget
 	};
 });
