@@ -4,6 +4,26 @@ Design one Open Graph image template and automatically generate a branded, serve
 
 The user-facing plugin readme (used by WordPress.org) is [readme.txt](readme.txt).
 
+## Admin pages
+
+All screens live under the top-level **Social Preview Designer** menu and share a
+common app shell (brand + nav pills):
+
+- **Dashboard** (`wp-remote-og`) — readiness checklist, generation-health counts,
+  quick actions, and recently generated images.
+- **Template Editor** (`wp-remote-og-editor`) — top action bar, Structure panel
+  with undo/redo, elevated 1200×630 artboard, and a contextual inspector.
+- **Templates** (`wp-remote-og-templates`) — gallery of built-in presets with
+  category filters, live previews, Apply (with confirmation + backup), and
+  Restore-previous-template.
+- **Dynamic Fields** (`wp-remote-og-fields`) — token-to-post-data mapping.
+- **Fonts** (`wp-remote-og-fonts`) — custom/Google font management.
+- **Generation Tools** (`wp-remote-og-tools`) — bulk generate/regenerate/cleanup.
+- **Diagnostics** (`wp-remote-og-diagnostics`) — environment and status report.
+
+The Template Editor previously lived at `wp-remote-og`; that slug now shows the
+Dashboard while the editor moved to `wp-remote-og-editor`.
+
 ## Development
 
 - `wp-remote-og-plugins.php` — the entire plugin (admin pages, renderer, fonts, SEO integration).

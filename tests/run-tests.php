@@ -100,7 +100,9 @@ wp_remote_og_assert( array_key_exists( 'upload_writable', $diagnostics ), 'Diagn
 do_action( 'admin_menu' );
 global $submenu;
 $registered_pages = isset( $submenu['wp-remote-og'] ) ? wp_list_pluck( $submenu['wp-remote-og'], 2 ) : array();
-wp_remote_og_assert( in_array( 'wp-remote-og', $registered_pages, true ), 'Template Editor admin page is registered.' );
+wp_remote_og_assert( in_array( 'wp-remote-og', $registered_pages, true ), 'Dashboard admin page is registered on the top-level slug.' );
+wp_remote_og_assert( in_array( 'wp-remote-og-editor', $registered_pages, true ), 'Template Editor admin page is registered on the new slug.' );
+wp_remote_og_assert( in_array( 'wp-remote-og-templates', $registered_pages, true ), 'Templates gallery admin page is registered.' );
 wp_remote_og_assert( in_array( 'wp-remote-og-fields', $registered_pages, true ), 'Dynamic Fields admin page is registered.' );
 wp_remote_og_assert( in_array( 'wp-remote-og-fonts', $registered_pages, true ), 'Fonts admin page is registered.' );
 wp_remote_og_assert( in_array( 'wp-remote-og-tools', $registered_pages, true ), 'Generation Tools admin page is registered.' );
@@ -113,6 +115,89 @@ wp_remote_og_assert( false !== strpos( $template_page_html, 'wp-remote-og-add-ho
 wp_remote_og_assert( false !== strpos( $template_page_html, 'wp-remote-og-add-vertical-line' ), 'Template editor exposes an Add Vertical Line button.' );
 wp_remote_og_assert( false !== strpos( $template_page_html, 'wp-remote-og-layer-line-orientation' ), 'Template editor exposes line orientation controls.' );
 wp_remote_og_assert( false !== strpos( $template_page_html, 'wp-remote-og-layer-image-fit' ), 'Template editor exposes image fit controls.' );
+wp_remote_og_assert( false !== strpos( $template_page_html, 'wpog-inspector' ), 'Template editor renders the redesigned inspector.' );
+
+ob_start();
+WP_Remote_OG_Admin::render_dashboard_page();
+$dashboard_html = ob_get_clean();
+wp_remote_og_assert( false !== strpos( $dashboard_html, 'wpog-checklist' ), 'Dashboard renders the readiness checklist.' );
+wp_remote_og_assert( false !== strpos( $dashboard_html, 'Generation health' ), 'Dashboard renders the generation health section.' );
+wp_remote_og_assert( false !== strpos( $dashboard_html, 'wpog-check-item' ), 'Dashboard renders individual readiness markers.' );
+
+ob_start();
+WP_Remote_OG_Admin::render_templates_page();
+$templates_html = ob_get_clean();
+wp_remote_og_assert( false !== strpos( $templates_html, 'wp-remote-og-gallery' ), 'Templates page renders the gallery container.' );
+wp_remote_og_assert( false !== strpos( $templates_html, 'wpog-filter-pill' ), 'Templates page renders category filter pills.' );
+
+$presets = WP_Remote_OG_Presets::all();
+wp_remote_og_assert( is_array( $presets ) && count( $presets ) >= 8, 'Preset registry returns at least 8 presets.' );
+
+$preset_dir = WP_Remote_OG_Uploads::ensure_directory();
+$preset_all_ok = true;
+$preset_render_ok = true;
+foreach ( $presets as $preset ) {
+	$resanitized = WP_Remote_OG_Plugin::sanitize_template( $preset['template'] );
+	if ( wp_json_encode( $resanitized ) !== wp_json_encode( $preset['template'] ) ) {
+		$preset_all_ok = false;
+		wp_remote_og_note( 'Preset not idempotent under sanitize_template: ' . $preset['key'] );
+	}
+
+	if ( ! is_wp_error( $preset_dir ) ) {
+		$preset_path = trailingslashit( $preset_dir['path'] ) . 'wp-remote-og-preset-' . $preset['key'] . '.png';
+		$preset_rendered = WP_Remote_OG_Renderer::render_post( 0, $preset['template'], $preset_path, 'gd' );
+		$preset_size = ( ! is_wp_error( $preset_rendered ) && file_exists( $preset_path ) ) ? getimagesize( $preset_path ) : false;
+		if ( is_wp_error( $preset_rendered ) || ! $preset_size || 1200 !== $preset_size[0] || 630 !== $preset_size[1] ) {
+			$preset_render_ok = false;
+			wp_remote_og_note( 'Preset failed to render at 1200x630: ' . $preset['key'] );
+		}
+		if ( file_exists( $preset_path ) ) {
+			WP_Remote_OG_Uploads::safe_delete( $preset_path );
+		}
+	}
+}
+wp_remote_og_assert( $preset_all_ok, 'Every preset passes sanitize_template() unchanged (deep compare).' );
+wp_remote_og_assert( $preset_render_ok, 'Every preset renders via GD to exactly 1200x630.' );
+wp_remote_og_assert( null === WP_Remote_OG_Presets::get( 'no-such-preset-key' ), 'Unknown preset key is rejected by the registry.' );
+wp_remote_og_assert( is_array( WP_Remote_OG_Presets::get( $presets[0]['key'] ) ), 'Known preset key resolves from the registry.' );
+
+// apply_preset requires an authorized user: a subscriber must fail the capability gate that verify_ajax() enforces.
+$preset_subscriber_id = wp_insert_user(
+	array(
+		'user_login' => 'wp_remote_og_preset_sub_' . time(),
+		'user_pass'  => wp_generate_password(),
+		'user_email' => 'wp-remote-og-preset-sub-' . time() . '@example.test',
+		'role'       => 'subscriber',
+	)
+);
+if ( ! is_wp_error( $preset_subscriber_id ) ) {
+	wp_set_current_user( $preset_subscriber_id );
+	wp_remote_og_assert( ! WP_Remote_OG_Plugin::can_manage(), 'apply_preset capability gate rejects users lacking edit_others_posts.' );
+	wp_delete_user( $preset_subscriber_id );
+}
+wp_set_current_user( $admin_id );
+wp_remote_og_assert( (bool) wp_verify_nonce( wp_create_nonce( 'wp_remote_og_admin' ), 'wp_remote_og_admin' ), 'apply_preset shares the nonce action verified by verify_ajax().' );
+
+// Applying a preset (as the handler does) backs up the current template and flags regeneration.
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY );
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+$pre_apply_template = WP_Remote_OG_Plugin::get_template();
+update_option(
+	WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP,
+	array( 'template' => $pre_apply_template, 'created_at' => current_time( 'mysql' ) ),
+	false
+);
+WP_Remote_OG_Plugin::save_template( WP_Remote_OG_Presets::get( $presets[0]['key'] )['template'] );
+$applied_backup = get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+wp_remote_og_assert( get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ), 'Applying a preset marks the template dirty for regeneration.' );
+wp_remote_og_assert( is_array( $applied_backup ) && ! empty( $applied_backup['template'] ), 'Applying a preset backs up the previous template.' );
+wp_remote_og_assert( wp_json_encode( $applied_backup['template'] ) === wp_json_encode( $pre_apply_template ), 'The stored backup matches the pre-apply template.' );
+
+// Restoring the backup returns the previous template and clears the backup option.
+WP_Remote_OG_Plugin::save_template( $applied_backup['template'] );
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+wp_remote_og_assert( wp_json_encode( WP_Remote_OG_Plugin::get_template() ) === wp_json_encode( $pre_apply_template ), 'Restoring the backup returns the previous template.' );
+wp_remote_og_assert( false === get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP, false ), 'Restoring the backup clears the stored backup option.' );
 $admin_css = file_get_contents( dirname( __DIR__ ) . '/assets/admin.css' );
 wp_remote_og_assert( (bool) preg_match( '/\.wp-remote-og-layer-text\s*\{[^}]*width:\s*100%;/s', $admin_css ), 'Editor preview text span fills the layer width for alignment.' );
 $plugin_source = file_get_contents( dirname( __DIR__ ) . '/wp-remote-og-plugins.php' );

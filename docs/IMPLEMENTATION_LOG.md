@@ -10,6 +10,48 @@
 
 ---
 
+## 2026-07-14 — Admin UX redesign
+
+Comprehensive redesign of the plugin admin experience (branch
+`feature/admin-dashboard-template-gallery-ui`), delivered in five commits:
+
+1. **Design system + app shell.** New indigo, system-font design language driven
+   by CSS custom properties on a `.wp-remote-og-app` root. Replaced the native
+   `.nav-tab` bar with a branded shell (logo mark + nav pills + page action
+   area) shared by every screen. Restyled Dynamic Fields, Fonts, Generation
+   Tools, and Diagnostics into card-based layouts with status badges, styled
+   notices, and `:focus-visible` states.
+2. **Dashboard.** The top-level slug `wp-remote-og` now renders a Dashboard; the
+   editor moved to `wp-remote-og-editor` (import redirect + nav updated, old
+   links still reach the editor). Dashboard shows a live readiness checklist
+   with fix links, generation-health counts (single queries via Diagnostics),
+   quick actions, and recently generated images with an onboarding empty state.
+3. **Template gallery.** New `wp-remote-og-templates` page and
+   `WP_Remote_OG_Presets` registry with 8 varied presets built entirely from the
+   existing schema (full-canvas `line` rectangles as coloured backgrounds).
+   Presets are normalized through `sanitize_template()` so they are idempotent.
+   Client-side scaled previews (no binary assets), category filters, preview
+   modal, and Apply with confirmation. New `apply_preset` and
+   `restore_template_backup` AJAX endpoints (capability + nonce via
+   `verify_ajax()`), applied server-side by key, backing up the current template
+   to `wp_remote_og_template_backup` before applying.
+4. **Editor workspace.** Top app bar (title, saved/dirty indicator, preview
+   selector, overflow menu, primary Save), left Structure panel with add-layer
+   menu and undo/redo, elevated artboard with circular resize handles, and a
+   right contextual inspector with collapsible sections and an empty state.
+   Added undo/redo history, duplicate layer, and loading/dirty states while
+   preserving all existing IDs, drag/resize/keyboard-nudge, token insertion,
+   fonts, colour picker, preview, save, and import/export behaviour.
+5. **Tests + docs.** Extended `tests/run-tests.php` with dashboard/templates
+   page registration and render markers, preset registry (≥8), preset
+   idempotency + GD render at 1200×630, unknown-key rejection, capability/nonce
+   gate, apply-backs-up-and-dirties, and restore. Updated docs.
+
+No renderer schema changes were required; saved templates load and render
+unchanged. No external/CDN runtime dependencies were added.
+
+---
+
 ## Milestone Progress
 
 | Milestone | Status | Tests | Playwright | Notes |
