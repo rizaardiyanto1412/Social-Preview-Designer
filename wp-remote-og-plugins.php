@@ -2753,7 +2753,8 @@ final class WP_Remote_OG_Admin {
 		wp_enqueue_media();
 		wp_enqueue_style( 'wp-color-picker' );
 		wp_enqueue_style( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.css', array( 'wp-color-picker' ), self::asset_version( 'assets/admin.css' ) );
-		wp_enqueue_script( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.js', array( 'jquery', 'jquery-ui-draggable', 'jquery-ui-resizable', 'wp-color-picker' ), self::asset_version( 'assets/admin.js' ), true );
+		wp_enqueue_script( 'wp-remote-og-editor-state', WP_REMOTE_OG_URL . 'assets/editor-state.js', array(), self::asset_version( 'assets/editor-state.js' ), true );
+		wp_enqueue_script( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.js', array( 'jquery', 'jquery-ui-draggable', 'jquery-ui-resizable', 'wp-color-picker', 'wp-remote-og-editor-state' ), self::asset_version( 'assets/admin.js' ), true );
 
 		wp_localize_script(
 			'wp-remote-og-admin',

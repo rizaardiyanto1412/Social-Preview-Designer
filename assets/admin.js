@@ -1,8 +1,12 @@
 (function ($) {
 	'use strict';
 
+	// Shared, framework-free state engine (also used directly by the Node tests).
+	var ES = window.WPRemoteOGEditorState;
+
 	var state = {
 		template: window.WPRemoteOG && WPRemoteOG.template ? WPRemoteOG.template : null,
+		savedSnapshot: null,
 		selectedLayerId: null,
 		preview: {},
 		ready: false,
@@ -13,10 +17,17 @@
 		dirtySinceSave: false
 	};
 
-	var HISTORY_LIMIT = 60;
+	var HISTORY_LIMIT = ES.HISTORY_LIMIT;
 
 	function snapshotTemplate() {
 		return clone(state.template);
+	}
+
+	// Recompute the dirty flag from the actual state: dirty means the current
+	// template differs from the last persisted (saved) snapshot. This makes
+	// "undo back to the saved state" clean and "redo away from it" dirty for free.
+	function syncDirty() {
+		markDirty(ES.isDirty(state.template, state.savedSnapshot));
 	}
 
 	function markDirty(flag) {
@@ -53,14 +64,7 @@
 	}
 
 	function pushHistory(snapshot) {
-		if (!snapshot) {
-			return;
-		}
-		state.history.undo.push(snapshot);
-		if (state.history.undo.length > HISTORY_LIMIT) {
-			state.history.undo.shift();
-		}
-		state.history.redo = [];
+		ES.pushHistory(state.history, snapshot, HISTORY_LIMIT);
 		updateHistoryButtons();
 	}
 
@@ -73,18 +77,19 @@
 	}
 
 	function restoreFromHistory(fromStack, toStack) {
-		if (!fromStack.length) {
+		var restored = ES.transferHistory(fromStack, toStack, state.template);
+		if (!restored) {
 			return;
 		}
-		toStack.push(snapshotTemplate());
-		state.template = fromStack.pop();
+		state.template = restored;
 		if (!state.template.layers.length) {
 			state.selectedLayerId = null;
 		} else if (!currentLayer()) {
 			state.selectedLayerId = state.template.layers[0].id;
 		}
 		updateHistoryButtons();
-		markDirty(true);
+		// Value-based: undoing back to the persisted state becomes clean again.
+		syncDirty();
 		renderLayerList();
 		renderCanvas();
 		fillControls(currentLayer());
@@ -558,28 +563,17 @@
 		}
 
 		var scale = activeCanvasScale();
-		var deltaX = (event.clientX - state.interaction.startX) / scale;
-		var deltaY = (event.clientY - state.interaction.startY) / scale;
 
 		if (state.interaction.type === 'move') {
-			layer.x = Math.round(clamp(state.interaction.x + deltaX, 0, 1200 - layer.width));
-			layer.y = Math.round(clamp(state.interaction.y + deltaY, 0, 630 - layer.height));
+			var moved = ES.computeMove(state.interaction, event.clientX, event.clientY, scale);
+			layer.x = moved.x;
+			layer.y = moved.y;
 		} else {
-			var edge = state.interaction.edge || 'corner';
-			var minWidth = layerMinWidth(layer);
-			var minHeight = layerMinHeight(layer);
-
-			if ('left' === edge) {
-				var rightEdge = state.interaction.x + state.interaction.width;
-				var nextX = clamp(state.interaction.x + deltaX, 0, rightEdge - minWidth);
-				layer.x = Math.round(nextX);
-				layer.width = Math.round(rightEdge - nextX);
-			} else if ('right' === edge) {
-				layer.width = Math.round(clamp(state.interaction.width + deltaX, minWidth, 1200 - layer.x));
-			} else {
-				layer.width = Math.round(clamp(state.interaction.width + deltaX, minWidth, 1200 - layer.x));
-				layer.height = Math.round(clamp(state.interaction.height + deltaY, minHeight, 630 - layer.y));
-			}
+			var resized = ES.computeResize(state.interaction, event.clientX, event.clientY, scale, layerMinWidth(layer), layerMinHeight(layer));
+			layer.x = resized.x;
+			layer.y = resized.y;
+			layer.width = resized.width;
+			layer.height = resized.height;
 		}
 
 		updateLayerElement(layer);
@@ -598,9 +592,9 @@
 			});
 			// Only record history / mark dirty when the geometry actually changed.
 			// A pure click-to-select (zero movement) leaves everything untouched.
-			if (layer && (layer.x !== interaction.x || layer.y !== interaction.y || layer.width !== interaction.width || layer.height !== interaction.height)) {
+			if (layer && ES.geometryChanged(interaction, layer)) {
 				pushHistory(interaction.snapshot);
-				markDirty(true);
+				syncDirty();
 			}
 		}
 
@@ -1138,7 +1132,7 @@
 
 		if (JSON.stringify(layer) !== beforeLayer) {
 			pushHistory(beforeSnapshot);
-			markDirty(true);
+			syncDirty();
 		}
 
 		renderLayerList();
@@ -1273,9 +1267,13 @@
 				state.mediaFrame = null;
 				return;
 			}
-			layer.content = attachment.url;
-			if (attachment.width && attachment.height) {
-				layer.image_aspect_ratio = attachment.width / attachment.height;
+			// Media selection must be undoable: capture a pre-change snapshot,
+			// apply the mutation, and only record history / mark dirty if the
+			// layer actually changed (reselecting the same image is a no-op).
+			var beforeSnapshot = snapshotTemplate();
+			if (ES.applyMediaSelection(layer, attachment)) {
+				pushHistory(beforeSnapshot);
+				syncDirty();
 			}
 			$('#wp-remote-og-layer-content').val(layer.content);
 			fillControls(layer);
@@ -1290,20 +1288,25 @@
 	function saveTemplate() {
 		var status = $('#wp-remote-og-status');
 		var button = $('#wp-remote-og-save-template');
-		var selectedId = state.selectedLayerId;
+		// Capture the exact state being persisted at click time. Edits made
+		// while the request is in flight must not be clobbered by the response,
+		// and must not be falsely marked clean.
+		var submitted = ES.clone(state.template);
 		setStatusMessage(status, 'Saving...', 'busy');
 		button.prop('disabled', true).addClass('is-busy');
 		$.post(WPRemoteOG.ajaxUrl, {
 			action: 'wp_remote_og_save_template',
 			nonce: WPRemoteOG.nonce,
-			template: state.template
+			template: submitted
 		}).done(function (response) {
 			if (response.success) {
-				state.template = response.data.template;
-				if (selectedId && currentLayer()) {
-					state.selectedLayerId = selectedId;
-				}
-				markDirty(false);
+				// Never replace the live template with the response: it may be
+				// stale relative to edits made after the Save click. Only adopt
+				// the submitted snapshot as the new saved baseline, then let the
+				// value-based dirty check decide cleanliness.
+				var resolved = ES.resolveSave(submitted, state.template);
+				state.savedSnapshot = resolved.saved;
+				syncDirty();
 				flashDirtyIndicator(WPRemoteOG.strings.savedShort || 'Saved', 'is-saved');
 				renderLayerList();
 				renderCanvas();
@@ -1381,6 +1384,8 @@
 		if (!state.template.layers) {
 			state.template.layers = [];
 		}
+		// The freshly loaded template is the persisted baseline.
+		state.savedSnapshot = clone(state.template);
 		if (state.template.layers.length) {
 			state.selectedLayerId = state.template.layers[0].id;
 		}
