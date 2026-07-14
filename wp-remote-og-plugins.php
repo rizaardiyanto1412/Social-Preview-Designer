@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name: WP Remote OG Images
- * Description: Generates dynamic server-rendered Open Graph images for WP Remote Work posts.
- * Version: 0.1.6
+ * Plugin Name: Social Preview Designer
+ * Description: Design one Open Graph image template and automatically generate a branded social preview image for every post. Integrates with Rank Math.
+ * Version: 1.0.0
  * Author: WP Remote Work
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WP_REMOTE_OG_VERSION', '0.1.6' );
+define( 'WP_REMOTE_OG_VERSION', '1.0.0' );
 define( 'WP_REMOTE_OG_FILE', __FILE__ );
 define( 'WP_REMOTE_OG_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WP_REMOTE_OG_URL', plugin_dir_url( __FILE__ ) );
@@ -31,6 +31,7 @@ final class WP_Remote_OG_Plugin {
 	const OPTION_TEMPLATE_VERSION   = 'wp_remote_og_template_version';
 	const OPTION_TEMPLATE_DIRTY     = 'wp_remote_og_template_needs_regeneration';
 	const OPTION_GENERATION_LOG     = 'wp_remote_og_generation_log';
+	const OPTION_ACTIVATION_ERROR   = 'wp_remote_og_activation_error';
 	const OPTION_PUBLISHPRESS_AVATAR_TOKEN = 'wp_remote_og_publishpress_avatar_token';
 	const PUBLISHPRESS_AVATAR_TOKEN_META_KEY = 'avatar_token';
 	const META_IMAGE_URL            = '_wp_remote_og_image_url';
@@ -57,7 +58,12 @@ final class WP_Remote_OG_Plugin {
 	}
 
 	public static function activate() {
-		WP_Remote_OG_Uploads::ensure_directory();
+		$directory = WP_Remote_OG_Uploads::ensure_directory();
+		if ( is_wp_error( $directory ) ) {
+			update_option( self::OPTION_ACTIVATION_ERROR, $directory->get_error_message(), false );
+		} else {
+			delete_option( self::OPTION_ACTIVATION_ERROR );
+		}
 
 		if ( false === get_option( self::OPTION_TEMPLATE, false ) ) {
 			add_option( self::OPTION_TEMPLATE, self::default_template() );
@@ -215,6 +221,7 @@ final class WP_Remote_OG_Plugin {
 			return 0;
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- termmeta join has no WP API equivalent; result is memoized per request in $publishpress_avatar_token_cache.
 		$term_id = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT te.term_id
@@ -239,6 +246,7 @@ final class WP_Remote_OG_Plugin {
 			return 0;
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- termmeta join has no WP API equivalent; result is memoized per request in $publishpress_avatar_token_cache.
 		$term_id = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT tm.term_id
@@ -672,6 +680,7 @@ final class WP_Remote_OG_Uploads {
 			$files = array();
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off admin maintenance action; must read live meta values across all posts.
 		$linked_paths = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s",
@@ -735,6 +744,7 @@ final class WP_Remote_OG_Diagnostics {
 
 	public static function generated_count() {
 		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- diagnostics-page count; must reflect live data.
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value <> ''",
@@ -745,6 +755,7 @@ final class WP_Remote_OG_Diagnostics {
 
 	public static function missing_count() {
 		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- diagnostics-page count; must reflect live data.
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(p.ID)
@@ -1216,8 +1227,9 @@ final class WP_Remote_OG_Fonts {
 		$response = wp_remote_get(
 			self::google_font_catalog_url(),
 			array(
-				'timeout'    => 15,
-				'user-agent' => 'WP Remote OG/' . WP_REMOTE_OG_VERSION . '; WordPress',
+				'timeout'            => 15,
+				'user-agent'         => 'WP Remote OG/' . WP_REMOTE_OG_VERSION . '; WordPress',
+				'reject_unsafe_urls' => true,
 			)
 		);
 
@@ -1328,11 +1340,16 @@ final class WP_Remote_OG_Fonts {
 		);
 		$css_url = esc_url_raw( $css_url );
 
+		if ( ! wp_http_validate_url( $css_url ) ) {
+			return new WP_Error( 'wp_remote_og_google_font_css_url', __( 'The Google font stylesheet URL is not valid.', 'wp-remote-og-plugins' ) );
+		}
+
 		$response = wp_remote_get(
 			$css_url,
 			array(
-				'timeout'    => 15,
-				'user-agent' => 'Mozilla/5.0 AppleWebKit/537.36 WP Remote OG/' . WP_REMOTE_OG_VERSION,
+				'timeout'            => 15,
+				'user-agent'         => 'Mozilla/5.0 AppleWebKit/537.36 WP Remote OG/' . WP_REMOTE_OG_VERSION,
+				'reject_unsafe_urls' => true,
 			)
 		);
 
@@ -1341,15 +1358,16 @@ final class WP_Remote_OG_Fonts {
 		}
 
 		$font_url = self::google_font_ttf_url_from_css( wp_remote_retrieve_body( $response ) );
-		if ( '' === $font_url ) {
+		if ( '' === $font_url || ! wp_http_validate_url( $font_url ) ) {
 			return new WP_Error( 'wp_remote_og_google_font_ttf_missing', __( 'The Google font stylesheet did not include a TTF source.', 'wp-remote-og-plugins' ) );
 		}
 
 		$font_response = wp_remote_get(
 			$font_url,
 			array(
-				'timeout'    => 20,
-				'user-agent' => 'WP Remote OG/' . WP_REMOTE_OG_VERSION . '; WordPress',
+				'timeout'            => 20,
+				'user-agent'         => 'WP Remote OG/' . WP_REMOTE_OG_VERSION . '; WordPress',
+				'reject_unsafe_urls' => true,
 			)
 		);
 
@@ -1360,6 +1378,12 @@ final class WP_Remote_OG_Fonts {
 		$font_body = wp_remote_retrieve_body( $font_response );
 		if ( '' === $font_body ) {
 			return new WP_Error( 'wp_remote_og_google_font_empty', __( 'The Google font file download was empty.', 'wp-remote-og-plugins' ) );
+		}
+
+		// Verify the payload is a real font before writing it to disk (TTF/TTC/OTF magic bytes).
+		$magic = substr( $font_body, 0, 4 );
+		if ( ! in_array( $magic, array( "\x00\x01\x00\x00", 'true', 'ttcf', 'OTTO' ), true ) ) {
+			return new WP_Error( 'wp_remote_og_google_font_bad_file', __( 'The downloaded file is not a valid font file.', 'wp-remote-og-plugins' ) );
 		}
 
 		$directory = WP_Remote_OG_Uploads::ensure_fonts_directory();
@@ -1421,9 +1445,28 @@ final class WP_Remote_OG_Fonts {
 		return in_array( $extension, array( 'ttf', 'otf', 'woff', 'woff2' ), true );
 	}
 
+	/**
+	 * Content-based font validation via magic bytes (TTF/TTC/OTF/WOFF/WOFF2).
+	 *
+	 * More reliable than finfo MIME detection, which reports inconsistent
+	 * types for fonts (font/sfnt, application/x-font-ttf, ...) across systems.
+	 */
+	public static function is_valid_font_file( $path ) {
+		if ( ! is_readable( $path ) ) {
+			return false;
+		}
+
+		$magic = file_get_contents( $path, false, null, 0, 4 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- reading 4 bytes from a local file to verify its signature.
+		return is_string( $magic ) && in_array( $magic, array( "\x00\x01\x00\x00", 'true', 'ttcf', 'OTTO', 'wOFF', 'wOF2' ), true );
+	}
+
 	public static function register_font_from_path( $path, $label = '' ) {
-		if ( ! file_exists( $path ) || ! self::is_supported_font_path( $path ) ) {
+		if ( ! file_exists( $path ) || ! is_readable( $path ) || ! self::is_supported_font_path( $path ) ) {
 			return new WP_Error( 'wp_remote_og_font_type', __( 'Only TTF, OTF, WOFF, and WOFF2 font files are allowed.', 'wp-remote-og-plugins' ) );
+		}
+
+		if ( ! self::is_valid_font_file( $path ) ) {
+			return new WP_Error( 'wp_remote_og_font_mime', __( 'The file is not a valid font file.', 'wp-remote-og-plugins' ) );
 		}
 
 		$directory = WP_Remote_OG_Uploads::ensure_fonts_directory();
@@ -1470,9 +1513,8 @@ final class WP_Remote_OG_Fonts {
 			return new WP_Error( 'wp_remote_og_font_type', __( 'Only TTF, OTF, WOFF, and WOFF2 font files are allowed.', 'wp-remote-og-plugins' ) );
 		}
 
-		$checked = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'], self::allowed_mimes() );
-		if ( empty( $checked['ext'] ) || ! isset( self::allowed_mimes()[ $checked['ext'] ] ) ) {
-			return new WP_Error( 'wp_remote_og_font_mime', __( 'The uploaded font MIME type could not be verified.', 'wp-remote-og-plugins' ) );
+		if ( ! self::is_valid_font_file( $file['tmp_name'] ) ) {
+			return new WP_Error( 'wp_remote_og_font_mime', __( 'The uploaded file is not a valid font file.', 'wp-remote-og-plugins' ) );
 		}
 
 		$directory = WP_Remote_OG_Uploads::ensure_fonts_directory();
@@ -2226,6 +2268,7 @@ final class WP_Remote_OG_Storage {
 			return false;
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- reverse meta_value lookup has no WP API equivalent; used only during admin cleanup.
 		$post_id = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value = %s LIMIT 1",
@@ -2339,6 +2382,7 @@ final class WP_Remote_OG_Generator {
 		);
 
 		if ( 'missing' === $mode ) {
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- intentional one-off query used by the admin bulk-generation tool.
 			$args['meta_query'] = array(
 				'relation' => 'OR',
 				array(
@@ -2456,8 +2500,8 @@ final class WP_Remote_OG_Admin {
 
 	public static function admin_menu() {
 		add_menu_page(
-			__( 'WP Remote OG', 'wp-remote-og-plugins' ),
-			__( 'WP Remote OG', 'wp-remote-og-plugins' ),
+			__( 'Social Preview Designer', 'wp-remote-og-plugins' ),
+			__( 'Social Preview Designer', 'wp-remote-og-plugins' ),
 			WP_Remote_OG_Plugin::capability(),
 			'wp-remote-og',
 			array( __CLASS__, 'render_template_page' ),
@@ -2511,6 +2555,14 @@ final class WP_Remote_OG_Admin {
 			return;
 		}
 
+		$activation_error = get_option( WP_Remote_OG_Plugin::OPTION_ACTIVATION_ERROR );
+		if ( $activation_error ) {
+			echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Social Preview Designer:', 'wp-remote-og-plugins' ) . '</strong> ' . esc_html( $activation_error ) . ' ' . esc_html__( 'Image generation will fail until the uploads directory is writable.', 'wp-remote-og-plugins' ) . '</p></div>';
+			if ( ! is_wp_error( WP_Remote_OG_Uploads::ensure_directory() ) ) {
+				delete_option( WP_Remote_OG_Plugin::OPTION_ACTIVATION_ERROR );
+			}
+		}
+
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 		if ( ! $screen || false === strpos( (string) $screen->id, 'wp-remote-og' ) ) {
 			return;
@@ -2518,11 +2570,11 @@ final class WP_Remote_OG_Admin {
 
 		$diagnostics = WP_Remote_OG_Diagnostics::get();
 		if ( ! $diagnostics['imagick'] && $diagnostics['gd'] ) {
-			echo '<div class="notice notice-warning"><p>' . esc_html__( 'WP Remote OG is using GD fallback because Imagick is unavailable. Some rendering quality/features may be limited.', 'wp-remote-og-plugins' ) . '</p></div>';
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Social Preview Designer is using GD fallback because Imagick is unavailable. Some rendering quality/features may be limited.', 'wp-remote-og-plugins' ) . '</p></div>';
 		}
 
 		if ( ! $diagnostics['gd'] && ! $diagnostics['imagick'] ) {
-			echo '<div class="notice notice-error"><p>' . esc_html__( 'WP Remote OG cannot generate images because neither Imagick nor GD is available.', 'wp-remote-og-plugins' ) . '</p></div>';
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Social Preview Designer cannot generate images because neither Imagick nor GD is available.', 'wp-remote-og-plugins' ) . '</p></div>';
 		}
 
 		if ( get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ) ) {
@@ -2530,11 +2582,14 @@ final class WP_Remote_OG_Admin {
 			echo '<a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=wp-remote-og-tools&wp_remote_og_prompt=1' ) ) . '">' . esc_html__( 'Open Generation Tools', 'wp-remote-og-plugins' ) . '</a></p></div>';
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag set by a nonce-verified redirect; no state change.
 		if ( isset( $_GET['wp_remote_og_imported'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['wp_remote_og_imported'] ) ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Template imported successfully.', 'wp-remote-og-plugins' ) . '</p></div>';
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag set by a nonce-verified redirect; no state change.
 		if ( isset( $_GET['wp_remote_og_import_error'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag; sanitized and mapped to a fixed message list below.
 			$error = sanitize_text_field( wp_unslash( $_GET['wp_remote_og_import_error'] ) );
 			$messages = array(
 				'missing_file' => __( 'No template file was uploaded.', 'wp-remote-og-plugins' ),
@@ -2606,6 +2661,7 @@ final class WP_Remote_OG_Admin {
 			exit;
 		}
 
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- tmp_name is verified with is_uploaded_file() below; file contents are JSON-decoded and run through sanitize_template().
 		$file = $_FILES['wp_remote_og_template_file'];
 		if ( ! empty( $file['error'] ) ) {
 			wp_safe_redirect( add_query_arg( 'wp_remote_og_import_error', 'upload_error', $redirect ) );
@@ -2670,7 +2726,7 @@ final class WP_Remote_OG_Admin {
 		$posts    = self::post_choices();
 		?>
 		<div class="wrap wp-remote-og-admin">
-			<h1><?php esc_html_e( 'WP Remote OG Template Editor', 'wp-remote-og-plugins' ); ?></h1>
+			<h1><?php esc_html_e( 'Social Preview Designer — Template Editor', 'wp-remote-og-plugins' ); ?></h1>
 			<?php self::tabs( 'wp-remote-og' ); ?>
 
 			<div class="wp-remote-og-editor" data-template="<?php echo esc_attr( wp_json_encode( $template ) ); ?>">
@@ -2823,7 +2879,7 @@ final class WP_Remote_OG_Admin {
 		}
 
 		if ( isset( $_POST['wp_remote_og_fields_nonce'] ) && check_admin_referer( 'wp_remote_og_dynamic_fields', 'wp_remote_og_fields_nonce' ) ) {
-			$fields = isset( $_POST['fields'] ) ? wp_unslash( $_POST['fields'] ) : array();
+			$fields = isset( $_POST['fields'] ) && is_array( $_POST['fields'] ) ? map_deep( wp_unslash( $_POST['fields'] ), 'sanitize_text_field' ) : array();
 			WP_Remote_OG_Plugin::save_dynamic_fields( $fields );
 			echo '<div class="notice notice-success"><p>' . esc_html__( 'Dynamic fields saved.', 'wp-remote-og-plugins' ) . '</p></div>';
 		}
@@ -2869,6 +2925,7 @@ final class WP_Remote_OG_Admin {
 			if ( ! current_user_can( 'upload_files' ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html__( 'You do not have permission to upload files.', 'wp-remote-og-plugins' ) . '</p></div>';
 			} else {
+				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- upload is verified with is_uploaded_file() and wp_check_filetype_and_ext() in upload_from_request().
 				$result = WP_Remote_OG_Fonts::upload_from_request( isset( $_FILES['wp_remote_og_font'] ) ? $_FILES['wp_remote_og_font'] : array() );
 				if ( is_wp_error( $result ) ) {
 					echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
@@ -2880,7 +2937,7 @@ final class WP_Remote_OG_Admin {
 
 		if ( isset( $_POST['wp_remote_og_google_font_nonce'] ) && check_admin_referer( 'wp_remote_og_add_google_font', 'wp_remote_og_google_font_nonce' ) ) {
 			$result = WP_Remote_OG_Fonts::register_google_font(
-				isset( $_POST['wp_remote_og_google_font_family'] ) ? $_POST['wp_remote_og_google_font_family'] : ''
+				isset( $_POST['wp_remote_og_google_font_family'] ) ? sanitize_text_field( wp_unslash( $_POST['wp_remote_og_google_font_family'] ) ) : ''
 			);
 			if ( is_wp_error( $result ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
@@ -3031,7 +3088,7 @@ final class WP_Remote_OG_Admin {
 	public static function add_meta_box() {
 		add_meta_box(
 			'wp_remote_og_meta',
-			__( 'WP Remote OG Image', 'wp-remote-og-plugins' ),
+			__( 'Remote OG Image', 'wp-remote-og-plugins' ),
 			array( __CLASS__, 'render_meta_box' ),
 			'post',
 			'side',
@@ -3078,6 +3135,7 @@ final class WP_Remote_OG_Admin {
 
 	public static function ajax_save_template() {
 		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); the template array is fully sanitized in sanitize_template() via save_template().
 		$template = isset( $_POST['template'] ) ? wp_unslash( $_POST['template'] ) : array();
 		$template = WP_Remote_OG_Plugin::save_template( $template );
 		wp_send_json_success(
@@ -3091,7 +3149,9 @@ final class WP_Remote_OG_Admin {
 
 	public static function ajax_preview() {
 		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
 		$post_id  = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); the template array is fully sanitized in sanitize_template() before use.
 		$template = isset( $_POST['template'] ) ? wp_unslash( $_POST['template'] ) : null;
 		$data     = WP_Remote_OG_Dynamic_Fields::preview_data( $post_id, $template );
 
@@ -3104,6 +3164,7 @@ final class WP_Remote_OG_Admin {
 
 	public static function ajax_generate_post() {
 		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
 		$result  = WP_Remote_OG_Generator::generate_for_post( $post_id );
 
@@ -3116,13 +3177,15 @@ final class WP_Remote_OG_Admin {
 
 	public static function ajax_bulk_ids() {
 		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
 		$mode = isset( $_POST['mode'] ) && 'missing' === $_POST['mode'] ? 'missing' : 'all';
 		wp_send_json_success( array( 'ids' => WP_Remote_OG_Generator::bulk_post_ids( $mode ) ) );
 	}
 
 	public static function ajax_bulk_process() {
 		self::verify_ajax();
-		$ids     = isset( $_POST['ids'] ) && is_array( $_POST['ids'] ) ? array_map( 'absint', $_POST['ids'] ) : array();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); every id is cast with absint().
+		$ids     = isset( $_POST['ids'] ) && is_array( $_POST['ids'] ) ? array_map( 'absint', wp_unslash( $_POST['ids'] ) ) : array();
 		$results = array();
 		$errors  = array();
 

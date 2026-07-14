@@ -23,6 +23,17 @@
 		return Math.max(min, Math.min(max, value));
 	}
 
+	function setStatusMessage(element, message, type) {
+		if (!element || !element.length) {
+			return;
+		}
+		element.removeClass('is-success is-error is-busy');
+		if (type) {
+			element.addClass('is-' + type);
+		}
+		element.text(message || '');
+	}
+
 	function availableTokens() {
 		if (!window.WPRemoteOG || !Array.isArray(WPRemoteOG.availableTokens)) {
 			return [];
@@ -278,9 +289,13 @@
 				return;
 			}
 
+			var accessibleLabel = layer.label || ('line' === layer.type ? lineLayerLabel(layer) : ('image' === layer.type ? 'Image Layer' : layer.content)) || layer.id;
 			var node = $('<div/>', {
 				'class': 'wp-remote-og-layer',
-				'data-layer-id': layer.id
+				'data-layer-id': layer.id,
+				tabindex: 0,
+				role: 'button',
+				'aria-label': accessibleLabel + ' (' + layer.type + ' layer)'
 			});
 			if ('line' === layer.type) {
 				node.addClass('wp-remote-og-layer-is-line');
@@ -350,7 +365,13 @@
 
 		$('.wp-remote-og-layer').on('mousedown', startMoveInteraction).on('click', function () {
 			selectLayer($(this).data('layer-id'));
-		});
+		}).on('focus', function () {
+			var id = $(this).data('layer-id');
+			if (id !== state.selectedLayerId) {
+				selectLayer(id);
+				focusCanvasLayer(id);
+			}
+		}).on('keydown', handleLayerKeydown);
 		$('.wp-remote-og-resize-handle').on('mousedown', startResizeInteraction);
 
 		applyCanvasScale();
@@ -463,6 +484,45 @@
 			width: layer.width + 'px',
 			height: layer.height + 'px'
 		});
+	}
+
+	function focusCanvasLayer(id) {
+		var node = $('.wp-remote-og-layer[data-layer-id="' + id + '"]');
+		if (node.length) {
+			node.trigger('focus');
+		}
+	}
+
+	function handleLayerKeydown(event) {
+		if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(event.key) === -1) {
+			return;
+		}
+
+		var id = $(this).data('layer-id');
+		if (id !== state.selectedLayerId) {
+			selectLayer(id);
+			focusCanvasLayer(id);
+		}
+		var layer = currentLayer();
+		if (!layer || layer.id !== id) {
+			return;
+		}
+
+		var step = event.shiftKey ? 10 : 1;
+		var deltaX = 'ArrowLeft' === event.key ? -step : ('ArrowRight' === event.key ? step : 0);
+		var deltaY = 'ArrowUp' === event.key ? -step : ('ArrowDown' === event.key ? step : 0);
+
+		if (event.ctrlKey || event.metaKey) {
+			layer.width = Math.round(clamp(layer.width + deltaX, layerMinWidth(layer), 1200 - layer.x));
+			layer.height = Math.round(clamp(layer.height + deltaY, layerMinHeight(layer), 630 - layer.y));
+		} else {
+			layer.x = Math.round(clamp(layer.x + deltaX, 0, 1200 - layer.width));
+			layer.y = Math.round(clamp(layer.y + deltaY, 0, 630 - layer.height));
+		}
+
+		updateLayerElement(layer);
+		fillControls(layer);
+		event.preventDefault();
 	}
 
 	function fontFamilyFor(layer) {
@@ -791,6 +851,8 @@
 		state.template.layers.forEach(function (layer) {
 			var item = $('<li/>', {
 				'data-layer-id': layer.id,
+				tabindex: 0,
+				role: 'button',
 				text: layer.label || ('line' === layer.type ? lineLayerLabel(layer) : layer.content) || layer.id
 			});
 			if (layer.id === state.selectedLayerId) {
@@ -1036,7 +1098,8 @@
 	}
 
 	function saveTemplate() {
-		$('#wp-remote-og-status').text('Saving...');
+		var status = $('#wp-remote-og-status');
+		setStatusMessage(status, 'Saving...', 'busy');
 		$.post(WPRemoteOG.ajaxUrl, {
 			action: 'wp_remote_og_save_template',
 			nonce: WPRemoteOG.nonce,
@@ -1044,24 +1107,26 @@
 		}).done(function (response) {
 			if (response.success) {
 				state.template = response.data.template;
-				$('#wp-remote-og-status').text(WPRemoteOG.strings.saved);
+				setStatusMessage(status, WPRemoteOG.strings.saved, 'success');
 			} else {
-				$('#wp-remote-og-status').text(response.data && response.data.message ? response.data.message : 'Unable to save template.');
+				setStatusMessage(status, response.data && response.data.message ? response.data.message : 'Unable to save template.', 'error');
 			}
 		}).fail(function () {
-			$('#wp-remote-og-status').text('Unable to save template.');
+			setStatusMessage(status, 'Unable to save template.', 'error');
 		});
 	}
 
 	function refreshPreview() {
 		var postId = $('#wp-remote-og-preview-post').val();
+		var warningsBox = $('#wp-remote-og-preview-warnings');
 		if (!postId) {
 			state.preview = {};
-			$('#wp-remote-og-preview-warnings').empty();
+			setStatusMessage(warningsBox, '', '');
 			renderCanvas();
 			return;
 		}
 
+		setStatusMessage(warningsBox, 'Loading preview...', 'busy');
 		$.post(WPRemoteOG.ajaxUrl, {
 			action: 'wp_remote_og_preview',
 			nonce: WPRemoteOG.nonce,
@@ -1069,13 +1134,15 @@
 			template: state.template
 		}).done(function (response) {
 			if (!response.success) {
-				$('#wp-remote-og-preview-warnings').text(response.data && response.data.message ? response.data.message : 'Preview failed.');
+				setStatusMessage(warningsBox, response.data && response.data.message ? response.data.message : 'Preview failed.', 'error');
 				return;
 			}
 			state.preview = response.data.layers || {};
 			var warnings = response.data.warnings || [];
-			$('#wp-remote-og-preview-warnings').text(warnings.join(' | '));
+			setStatusMessage(warningsBox, warnings.join(' | '), '');
 			renderCanvas();
+		}).fail(function () {
+			setStatusMessage(warningsBox, 'Preview failed.', 'error');
 		});
 	}
 
@@ -1132,6 +1199,15 @@
 		$('#wp-remote-og-refresh-preview, #wp-remote-og-preview-post').on('click change', refreshPreview);
 		$('#wp-remote-og-layer-list').on('click', 'li', function () {
 			selectLayer($(this).data('layer-id'));
+		});
+		$('#wp-remote-og-layer-list').on('keydown', 'li', function (event) {
+			if ('Enter' !== event.key && ' ' !== event.key && 'Spacebar' !== event.key) {
+				return;
+			}
+			event.preventDefault();
+			var id = $(this).data('layer-id');
+			selectLayer(id);
+			$('#wp-remote-og-layer-list li[data-layer-id="' + id + '"]').trigger('focus');
 		});
 		$('#wp-remote-og-token-picker').on('change', function () {
 			var layer = currentLayer();
@@ -1284,7 +1360,7 @@
 	function generatePost(button) {
 		var postId = button.data('post-id');
 		var status = button.closest('.wp-remote-og-post-box').find('.wp-remote-og-post-status');
-		status.text(WPRemoteOG.strings.generating);
+		setStatusMessage(status, WPRemoteOG.strings.generating, 'busy');
 		button.prop('disabled', true);
 
 		$.post(WPRemoteOG.ajaxUrl, {
@@ -1293,12 +1369,13 @@
 			post_id: postId
 		}).done(function (response) {
 			if (response.success) {
+				setStatusMessage(status, '', 'success');
 				status.html('Generated: <a href="' + response.data.url + '" target="_blank" rel="noopener noreferrer">open image</a>');
 			} else {
-				status.text(response.data && response.data.message ? response.data.message : 'Generation failed.');
+				setStatusMessage(status, response.data && response.data.message ? response.data.message : 'Generation failed.', 'error');
 			}
 		}).fail(function () {
-			status.text('Generation failed.');
+			setStatusMessage(status, 'Generation failed.', 'error');
 		}).always(function () {
 			button.prop('disabled', false);
 		});
@@ -1318,39 +1395,70 @@
 
 		$('.wp-remote-og-bulk').on('click', function () {
 			var mode = $(this).data('mode');
-			progress.text('Preparing posts...');
+			if ('all' === mode && !window.confirm('Regenerate OG images for ALL posts? This may take a while.')) {
+				return;
+			}
+			setStatusMessage(progress, 'Preparing posts...', 'busy');
 			$.post(WPRemoteOG.ajaxUrl, {
 				action: 'wp_remote_og_bulk_ids',
 				nonce: WPRemoteOG.nonce,
 				mode: mode
 			}).done(function (response) {
 				if (!response.success) {
-					progress.text('Unable to prepare posts.');
+					setStatusMessage(progress, 'Unable to prepare posts.', 'error');
 					return;
 				}
 				processBulk(response.data.ids || [], 0, 0, mode);
+			}).fail(function () {
+				setStatusMessage(progress, 'Unable to prepare posts.', 'error');
 			});
 		});
 
 		$('#wp-remote-og-cleanup-orphans').on('click', function () {
-			progress.text('Cleaning orphaned files...');
+			if (!window.confirm('Delete orphaned OG images from the uploads folder? This cannot be undone.')) {
+				return;
+			}
+			setStatusMessage(progress, 'Cleaning orphaned files...', 'busy');
 			$.post(WPRemoteOG.ajaxUrl, {
 				action: 'wp_remote_og_cleanup_orphans',
 				nonce: WPRemoteOG.nonce
 			}).done(function (response) {
 				if (response.success) {
-					progress.text('Deleted ' + response.data.deleted + ' orphaned files. Kept ' + response.data.kept + '.');
+					setStatusMessage(progress, 'Deleted ' + response.data.deleted + ' orphaned files. Kept ' + response.data.kept + '.', 'success');
 				} else {
-					progress.text(response.data && response.data.message ? response.data.message : 'Cleanup failed.');
+					setStatusMessage(progress, response.data && response.data.message ? response.data.message : 'Cleanup failed.', 'error');
 				}
+			}).fail(function () {
+				setStatusMessage(progress, 'Cleanup failed.', 'error');
 			});
 		});
+	}
+
+	function renderBulkProgress(done, total) {
+		var progress = $('#wp-remote-og-progress');
+		var bar = progress.find('.wp-remote-og-progress-bar');
+		if (!bar.length) {
+			progress.empty();
+			$('<span/>', {
+				'class': 'wp-remote-og-progress-label'
+			}).appendTo(progress);
+			bar = $('<div/>', {
+				'class': 'wp-remote-og-progress-bar'
+			}).appendTo(progress);
+			$('<div/>', {
+				'class': 'wp-remote-og-progress-bar-fill'
+			}).appendTo(bar);
+		}
+		var percent = total ? Math.round((done / total) * 100) : 0;
+		progress.removeClass('is-success is-error').addClass('is-busy');
+		progress.find('.wp-remote-og-progress-label').text('Processing ' + done + ' of ' + total + ' posts...');
+		progress.find('.wp-remote-og-progress-bar-fill').css('width', clamp(percent, 0, 100) + '%');
 	}
 
 	function processBulk(ids, done, errors, mode) {
 		var progress = $('#wp-remote-og-progress');
 		if (!ids.length) {
-			progress.text('No posts need processing.');
+			setStatusMessage(progress, 'No posts need processing.', '');
 			return;
 		}
 
@@ -1362,11 +1470,11 @@
 					nonce: WPRemoteOG.nonce
 				});
 			}
-			progress.text('Finished. Processed ' + done + ' posts with ' + errors + ' errors.');
+			setStatusMessage(progress, 'Finished. Processed ' + done + ' posts with ' + errors + ' errors.', errors ? 'error' : 'success');
 			return;
 		}
 
-		progress.text('Processing ' + done + ' of ' + ids.length + ' posts...');
+		renderBulkProgress(done, ids.length);
 		$.post(WPRemoteOG.ajaxUrl, {
 			action: 'wp_remote_og_bulk_process',
 			nonce: WPRemoteOG.nonce,

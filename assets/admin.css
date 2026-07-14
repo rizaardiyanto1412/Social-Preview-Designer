@@ -317,15 +317,30 @@
 
 .wp-remote-og-layer.is-selected {
 	border: 2px solid #2271b1;
-	box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.18);
+	box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.35), 0 4px 12px rgba(0, 0, 0, 0.18);
+	z-index: 4;
+}
+
+.wp-remote-og-layer:focus-visible,
+.wp-remote-og-layer-list li:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 2px;
 }
 
 .wp-remote-og-resize-handle {
 	background: #2271b1;
 	border: 2px solid #fff;
 	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+	opacity: 0;
 	position: absolute;
+	transition: opacity 120ms ease;
 	z-index: 5;
+}
+
+.wp-remote-og-layer.is-selected .wp-remote-og-resize-handle,
+.wp-remote-og-layer:hover .wp-remote-og-resize-handle,
+.wp-remote-og-layer:focus-visible .wp-remote-og-resize-handle {
+	opacity: 1;
 }
 
 .wp-remote-og-resize-handle-corner {
@@ -410,6 +425,79 @@
 .wp-remote-og-preview-warnings,
 .wp-remote-og-post-status {
 	margin-top: 12px;
+}
+
+.wp-remote-og-status.is-success,
+.wp-remote-og-progress.is-success,
+.wp-remote-og-preview-warnings.is-success,
+.wp-remote-og-post-status.is-success {
+	color: #00a32a;
+}
+
+.wp-remote-og-status.is-success::before,
+.wp-remote-og-progress.is-success::before,
+.wp-remote-og-preview-warnings.is-success::before,
+.wp-remote-og-post-status.is-success::before {
+	content: "\2713\00a0";
+	font-weight: 700;
+}
+
+.wp-remote-og-status.is-error,
+.wp-remote-og-progress.is-error,
+.wp-remote-og-preview-warnings.is-error,
+.wp-remote-og-post-status.is-error {
+	color: #d63638;
+}
+
+.wp-remote-og-status.is-busy,
+.wp-remote-og-progress.is-busy,
+.wp-remote-og-preview-warnings.is-busy,
+.wp-remote-og-post-status.is-busy {
+	color: #646970;
+}
+
+.wp-remote-og-status.is-busy::before,
+.wp-remote-og-progress.is-busy::before,
+.wp-remote-og-preview-warnings.is-busy::before,
+.wp-remote-og-post-status.is-busy::before {
+	animation: wp-remote-og-spin 0.9s linear infinite;
+	border: 2px solid #c3c4c7;
+	border-radius: 50%;
+	border-top-color: #646970;
+	box-sizing: border-box;
+	content: "";
+	display: inline-block;
+	height: 12px;
+	margin-right: 6px;
+	vertical-align: -2px;
+	width: 12px;
+}
+
+@keyframes wp-remote-og-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.wp-remote-og-progress-label {
+	display: inline-block;
+	margin-bottom: 6px;
+}
+
+.wp-remote-og-progress-bar {
+	background: #f0f0f1;
+	border-radius: 4px;
+	height: 8px;
+	max-width: 420px;
+	overflow: hidden;
+}
+
+.wp-remote-og-progress-bar-fill {
+	background: #2271b1;
+	border-radius: 4px;
+	height: 100%;
+	transition: width 200ms ease;
+	width: 0;
 }
 
 .wp-remote-og-preview-warnings {

@@ -1,49 +1,29 @@
-# WP Remote OG Images
+# Social Preview Designer
 
-Contributors: wpremotework
-Tags: open graph, social image, dynamic image, rank math
-Requires at least: 6.0
-Tested up to: 6.9
-Requires PHP: 7.4
-Stable tag: 0.1.0
-License: GPLv2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Design one Open Graph image template and automatically generate a branded, server-rendered social preview image for every WordPress post. Integrates with Rank Math.
 
-## Planning Docs
+The user-facing plugin readme (used by WordPress.org) is [readme.txt](readme.txt).
 
-This folder contains the planning documents for building the **WP Remote Work Dynamic OG Image Plugin**.
+## Development
 
-## Recommended plugin path
+- `wp-remote-og-plugins.php` — the entire plugin (admin pages, renderer, fonts, SEO integration).
+- `assets/` — admin editor JS/CSS.
+- `tests/run-tests.php` — WP-CLI integration test harness: `wp eval-file tests/run-tests.php`.
+- `docs/` — original planning documents (spec, plan, acceptance checklist).
 
-Copy these markdown files into:
+### Building a release zip
+
+Files excluded from distribution are listed in `.distignore`. Build with:
 
 ```bash
-/Users/rizaardiyanto/Cove/Sites/dev.localhost/public/wp-content/plugins/wp-remote-og-plugins
+wp dist-archive . ./dist
 ```
 
-Suggested command from your machine after unzipping this bundle:
+### Checking wp.org compliance
 
 ```bash
-cp SPEC.md PLAN.md GOAL.md IMPLEMENTATION_LOG.md ACCEPTANCE_CHECKLIST.md README.md \
-  /Users/rizaardiyanto/Cove/Sites/dev.localhost/public/wp-content/plugins/wp-remote-og-plugins/
-
-mkdir -p /Users/rizaardiyanto/Cove/Sites/dev.localhost/public/wp-content/plugins/wp-remote-og-plugins/reference-screens
+wp plugin install plugin-check --activate
+wp plugin check wp-remote-og-plugins
 ```
 
-## How to use these files
-
-Use `GOAL.md` as the short instruction prompt for the coding agent.
-
-Use `SPEC.md` as the source of truth for product requirements and architecture decisions.
-
-Use `PLAN.md` as the milestone-by-milestone implementation plan.
-
-Use `IMPLEMENTATION_LOG.md` to record progress, test results, blockers, and deviations.
-
-Use `ACCEPTANCE_CHECKLIST.md` for final QA before considering v1 complete.
-
-Use `/reference-screens/` for screenshots of desired admin/editor UI, if available.
-
-## Important instruction
-
-Do not start coding from memory alone. The implementation should read `SPEC.md` and `PLAN.md` first, then proceed milestone by milestone.
+Note: the local development folder is named `wp-remote-og-plugins`; for WordPress.org submission the distributed folder/slug should be renamed (e.g. `social-preview-designer`) because new wp.org slugs may not contain the terms `wp` or `plugin`. Internal code identifiers (`wp_remote_og_*` prefixes, text domain) intentionally keep the original naming.

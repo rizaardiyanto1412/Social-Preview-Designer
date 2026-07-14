@@ -1,0 +1,14 @@
+# Files and directories excluded from the distribution zip
+# (used by `wp dist-archive .`)
+.distignore
+.gitignore
+.git
+.DS_Store
+.playwright-mcp
+docs
+dist
+tests
+reference-screens
+composer.json
+composer.lock
+README.md

@@ -1,0 +1,5 @@
+.DS_Store
+dist/
+.playwright-mcp/
+node_modules/
+vendor/
