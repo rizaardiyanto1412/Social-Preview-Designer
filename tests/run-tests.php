@@ -178,26 +178,34 @@ if ( ! is_wp_error( $preset_subscriber_id ) ) {
 wp_set_current_user( $admin_id );
 wp_remote_og_assert( (bool) wp_verify_nonce( wp_create_nonce( 'wp_remote_og_admin' ), 'wp_remote_og_admin' ), 'apply_preset shares the nonce action verified by verify_ajax().' );
 
-// Applying a preset (as the handler does) backs up the current template and flags regeneration.
+// Exercise the actual, extracted handler core logic (WP_Remote_OG_Admin::apply_preset
+// / ::restore_template_backup) instead of duplicating it. The AJAX wrappers only
+// add the shared verify_ajax() security gate on top of these methods.
 delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY );
 delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
 $pre_apply_template = WP_Remote_OG_Plugin::get_template();
-update_option(
-	WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP,
-	array( 'template' => $pre_apply_template, 'created_at' => current_time( 'mysql' ) ),
-	false
-);
-WP_Remote_OG_Plugin::save_template( WP_Remote_OG_Presets::get( $presets[0]['key'] )['template'] );
+
+$apply_unknown = WP_Remote_OG_Admin::apply_preset( 'no-such-preset-key' );
+wp_remote_og_assert( is_wp_error( $apply_unknown ), 'apply_preset core rejects an unknown preset key.' );
+
+$apply_result = WP_Remote_OG_Admin::apply_preset( $presets[0]['key'] );
 $applied_backup = get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+wp_remote_og_assert( is_array( $apply_result ) && ! empty( $apply_result['template'] ), 'apply_preset core returns the applied template.' );
 wp_remote_og_assert( get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ), 'Applying a preset marks the template dirty for regeneration.' );
 wp_remote_og_assert( is_array( $applied_backup ) && ! empty( $applied_backup['template'] ), 'Applying a preset backs up the previous template.' );
 wp_remote_og_assert( wp_json_encode( $applied_backup['template'] ) === wp_json_encode( $pre_apply_template ), 'The stored backup matches the pre-apply template.' );
 
-// Restoring the backup returns the previous template and clears the backup option.
-WP_Remote_OG_Plugin::save_template( $applied_backup['template'] );
-delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
-wp_remote_og_assert( wp_json_encode( WP_Remote_OG_Plugin::get_template() ) === wp_json_encode( $pre_apply_template ), 'Restoring the backup returns the previous template.' );
+// Preserve-first: applying a SECOND preset must NOT overwrite the original backup.
+WP_Remote_OG_Admin::apply_preset( $presets[1]['key'] );
+$second_backup = get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+wp_remote_og_assert( wp_json_encode( $second_backup['template'] ) === wp_json_encode( $pre_apply_template ), 'A second preset apply preserves the ORIGINAL template backup (preserve-first).' );
+
+// Restoring via the core handler returns the original template and clears the backup.
+$restore_result = WP_Remote_OG_Admin::restore_template_backup();
+wp_remote_og_assert( is_array( $restore_result ) && ! empty( $restore_result['template'] ), 'restore_template_backup core returns a template.' );
+wp_remote_og_assert( wp_json_encode( WP_Remote_OG_Plugin::get_template() ) === wp_json_encode( $pre_apply_template ), 'Restoring the backup returns the original pre-preset template.' );
 wp_remote_og_assert( false === get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP, false ), 'Restoring the backup clears the stored backup option.' );
+wp_remote_og_assert( is_wp_error( WP_Remote_OG_Admin::restore_template_backup() ), 'restore_template_backup core errors when no backup exists.' );
 $admin_css = file_get_contents( dirname( __DIR__ ) . '/assets/admin.css' );
 wp_remote_og_assert( (bool) preg_match( '/\.wp-remote-og-layer-text\s*\{[^}]*width:\s*100%;/s', $admin_css ), 'Editor preview text span fills the layer width for alignment.' );
 $plugin_source = file_get_contents( dirname( __DIR__ ) . '/wp-remote-og-plugins.php' );

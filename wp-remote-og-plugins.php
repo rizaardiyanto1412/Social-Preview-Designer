@@ -2778,7 +2778,7 @@ final class WP_Remote_OG_Admin {
 					'saveError'  => __( 'Save failed', 'wp-remote-og-plugins' ),
 					'generating' => __( 'Generating...', 'wp-remote-og-plugins' ),
 					'googleFontListFallback' => __( 'Unable to load Google font directory. You can still type the font name manually.', 'wp-remote-og-plugins' ),
-					'applyConfirm' => __( 'Apply this template? This replaces your current template design. Your current template will be backed up so you can restore it.', 'wp-remote-og-plugins' ),
+					'applyConfirm' => __( 'Apply this template? This replaces your current template design. Your original template stays backed up so you can restore it.', 'wp-remote-og-plugins' ),
 					'restoreConfirm' => __( 'Restore your previous template? This replaces the current design.', 'wp-remote-og-plugins' ),
 					'applied'    => __( 'Template applied. Open the Template Editor to fine-tune it.', 'wp-remote-og-plugins' ),
 					'restored'   => __( 'Previous template restored.', 'wp-remote-og-plugins' ),
@@ -3962,52 +3962,87 @@ final class WP_Remote_OG_Admin {
 		);
 	}
 
-	public static function ajax_apply_preset() {
-		self::verify_ajax();
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
-		$key    = isset( $_POST['preset'] ) ? sanitize_key( wp_unslash( $_POST['preset'] ) ) : '';
-		$preset = WP_Remote_OG_Presets::get( $key );
+	/**
+	 * Apply a preset by key. Pure core logic (no exit/wp_die) so it is unit
+	 * testable; the AJAX wrapper adds security gates and JSON output.
+	 *
+	 * Backup semantics are preserve-first: the ORIGINAL custom template is
+	 * captured the first time a preset is applied and preserved across any
+	 * number of subsequent applies, so Restore always returns the user's own
+	 * design rather than an intermediate preset.
+	 *
+	 * @param string $key Preset key.
+	 * @return array|WP_Error
+	 */
+	public static function apply_preset( $key ) {
+		$preset = WP_Remote_OG_Presets::get( sanitize_key( (string) $key ) );
 		if ( ! $preset ) {
-			wp_send_json_error( array( 'message' => __( 'Unknown template preset.', 'wp-remote-og-plugins' ) ), 400 );
+			return new WP_Error( 'wp_remote_og_unknown_preset', __( 'Unknown template preset.', 'wp-remote-og-plugins' ) );
 		}
 
-		update_option(
-			WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP,
-			array(
-				'template'   => WP_Remote_OG_Plugin::get_template(),
-				'created_at' => current_time( 'mysql' ),
-			),
-			false
-		);
+		// Preserve-first: only back up when no backup already exists, so the
+		// original custom template survives repeated preset applies.
+		if ( false === get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP, false ) ) {
+			update_option(
+				WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP,
+				array(
+					'template'   => WP_Remote_OG_Plugin::get_template(),
+					'created_at' => current_time( 'mysql' ),
+				),
+				false
+			);
+		}
 
 		$template = WP_Remote_OG_Plugin::save_template( $preset['template'] );
 
-		wp_send_json_success(
-			array(
-				'template' => $template,
-				'preset'   => $preset['key'],
-				'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
-				'backup'   => true,
-			)
+		return array(
+			'template' => $template,
+			'preset'   => $preset['key'],
+			'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
+			'backup'   => true,
 		);
 	}
 
-	public static function ajax_restore_template_backup() {
-		self::verify_ajax();
+	/**
+	 * Restore the preserved pre-preset template. Pure core logic.
+	 *
+	 * @return array|WP_Error
+	 */
+	public static function restore_template_backup() {
 		$backup = get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
 		if ( ! is_array( $backup ) || empty( $backup['template'] ) ) {
-			wp_send_json_error( array( 'message' => __( 'No previous template is available to restore.', 'wp-remote-og-plugins' ) ), 400 );
+			return new WP_Error( 'wp_remote_og_no_backup', __( 'No previous template is available to restore.', 'wp-remote-og-plugins' ) );
 		}
 
 		$template = WP_Remote_OG_Plugin::save_template( $backup['template'] );
 		delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
 
-		wp_send_json_success(
-			array(
-				'template' => $template,
-				'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
-			)
+		return array(
+			'template' => $template,
+			'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
 		);
+	}
+
+	public static function ajax_apply_preset() {
+		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
+		$key    = isset( $_POST['preset'] ) ? sanitize_key( wp_unslash( $_POST['preset'] ) ) : '';
+		$result = self::apply_preset( $key );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
+
+		wp_send_json_success( $result );
+	}
+
+	public static function ajax_restore_template_backup() {
+		self::verify_ajax();
+		$result = self::restore_template_backup();
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
+
+		wp_send_json_success( $result );
 	}
 
 	public static function ajax_clear_template_notice() {
