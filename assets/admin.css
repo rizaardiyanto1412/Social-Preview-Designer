@@ -1029,3 +1029,202 @@
 .wpog-recent-link {
 	font-size: 12.5px;
 }
+
+/* ==========================================================================
+   Template gallery
+   ========================================================================== */
+.wp-remote-og-restore-notice .wp-remote-og-restore-meta {
+	color: var(--wpog-text-soft);
+	margin: 0 8px;
+}
+
+.wp-remote-og-gallery-status:empty {
+	display: none;
+}
+
+.wp-remote-og-gallery-status {
+	margin-bottom: 12px;
+}
+
+.wp-remote-og-gallery-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 18px;
+}
+
+.wpog-filter-pill {
+	background: var(--wpog-panel);
+	border: 1px solid var(--wpog-border);
+	border-radius: 999px;
+	color: var(--wpog-text-soft);
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 600;
+	padding: 7px 14px;
+}
+
+.wpog-filter-pill:hover {
+	background: var(--wpog-muted);
+}
+
+.wpog-filter-pill.is-active {
+	background: var(--wpog-accent);
+	border-color: var(--wpog-accent);
+	color: #fff;
+}
+
+.wp-remote-og-gallery {
+	display: grid;
+	gap: 18px;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.wp-remote-og-preset-card {
+	background: var(--wpog-panel);
+	border: 1px solid var(--wpog-border);
+	border-radius: var(--wpog-radius);
+	box-shadow: var(--wpog-shadow);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.wp-remote-og-preset-card:hover {
+	box-shadow: var(--wpog-shadow-lg);
+	transform: translateY(-2px);
+}
+
+.wp-remote-og-preset-thumb {
+	background: var(--wpog-muted);
+	border-bottom: 1px solid var(--wpog-border);
+	display: flex;
+	justify-content: center;
+	padding: 16px;
+}
+
+.wp-remote-og-preview-canvas {
+	background: #f8fafc;
+	border-radius: 4px;
+	box-shadow: 0 4px 14px rgba(16, 24, 40, 0.14);
+	overflow: hidden;
+	position: relative;
+}
+
+.wp-remote-og-preview-layer {
+	box-sizing: border-box;
+	position: absolute;
+	white-space: normal;
+	word-break: break-word;
+}
+
+.wp-remote-og-preview-layer.is-image-placeholder {
+	background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 6px, #cbd5e1 6px, #cbd5e1 12px);
+	border-radius: 4px;
+}
+
+.wp-remote-og-preset-body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 6px;
+	padding: 16px;
+}
+
+.wp-remote-og-preset-category {
+	color: var(--wpog-accent-hover);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.wp-remote-og-preset-name {
+	font-size: 15px;
+	font-weight: 700;
+	margin: 0;
+}
+
+.wp-remote-og-preset-desc {
+	color: var(--wpog-text-soft);
+	flex: 1 1 auto;
+	font-size: 13px;
+	margin: 0;
+}
+
+.wp-remote-og-preset-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+/* Modal -------------------------------------------------------------------- */
+.wp-remote-og-preset-modal {
+	align-items: center;
+	inset: 0;
+	display: flex;
+	justify-content: center;
+	position: fixed;
+	z-index: 100010;
+}
+
+.wp-remote-og-preset-modal[hidden] {
+	display: none;
+}
+
+.wp-remote-og-preset-modal-backdrop {
+	background: rgba(15, 23, 42, 0.55);
+	inset: 0;
+	position: absolute;
+}
+
+.wp-remote-og-preset-modal-panel {
+	background: var(--wpog-panel);
+	border-radius: var(--wpog-radius);
+	box-shadow: var(--wpog-shadow-lg);
+	max-height: 90vh;
+	max-width: 720px;
+	overflow: auto;
+	padding: 24px;
+	position: relative;
+	width: calc(100% - 40px);
+}
+
+.wp-remote-og-preset-modal-close {
+	background: transparent;
+	border: 0;
+	cursor: pointer;
+	font-size: 24px;
+	line-height: 1;
+	position: absolute;
+	right: 14px;
+	top: 12px;
+}
+
+.wp-remote-og-preset-modal-heading {
+	margin: 0 0 4px;
+}
+
+.wp-remote-og-preset-modal-desc {
+	color: var(--wpog-text-soft);
+	margin: 0 0 16px;
+}
+
+.wp-remote-og-preset-modal-preview {
+	display: flex;
+	justify-content: center;
+}
+
+.wp-remote-og-preset-modal-note {
+	color: var(--wpog-text-soft);
+	font-size: 12.5px;
+	margin: 12px 0 0;
+	text-align: center;
+}
+
+.wp-remote-og-preset-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 16px;
+}

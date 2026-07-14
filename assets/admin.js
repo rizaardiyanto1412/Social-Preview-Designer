@@ -1492,11 +1492,261 @@
 		});
 	}
 
+	var PREVIEW_TOKEN_SAMPLES = {
+		'{post_title}': 'Senior Product Designer (Remote)',
+		'{taxonomy:job_location}': 'Remote — Worldwide',
+		'{taxonomy:job_type}': 'Full-time',
+		'{acf:company_name}': 'Northwind Studio',
+		'{acf:salary_range}': '$120k – $150k'
+	};
+
+	function samplePreviewText(content) {
+		if (!content) {
+			return '';
+		}
+		var text = String(content);
+		Object.keys(PREVIEW_TOKEN_SAMPLES).forEach(function (token) {
+			text = text.split(token).join(PREVIEW_TOKEN_SAMPLES[token]);
+		});
+		return text.replace(/\{[^}]+\}/g, function (match) {
+			return match.replace(/[{}]/g, '').split(':').pop().replace(/_/g, ' ');
+		});
+	}
+
+	function buildPresetPreview(template, pxWidth) {
+		var scale = pxWidth / 1200;
+		var canvas = $('<div/>', {
+			'class': 'wp-remote-og-preview-canvas'
+		}).css({
+			width: pxWidth + 'px',
+			height: Math.round(630 * scale) + 'px'
+		});
+
+		if (!template || !Array.isArray(template.layers)) {
+			return canvas;
+		}
+
+		template.layers.forEach(function (layer) {
+			var node = $('<div/>', {
+				'class': 'wp-remote-og-preview-layer'
+			}).css({
+				left: (layer.x * scale) + 'px',
+				top: (layer.y * scale) + 'px',
+				width: (layer.width * scale) + 'px',
+				height: (layer.height * scale) + 'px'
+			});
+
+			if ('line' === layer.type) {
+				node.css('background', layer.color || '#111827');
+			} else if ('image' === layer.type) {
+				node.addClass('is-image-placeholder');
+			} else {
+				node.css({
+					color: layer.color || '#111827',
+					fontSize: Math.max(6, (layer.font_size || 32) * scale) + 'px',
+					lineHeight: layer.line_height || 1.1,
+					textAlign: layer.align || 'left',
+					overflow: 'hidden'
+				});
+				node.text(samplePreviewText(layer.content));
+			}
+
+			canvas.append(node);
+		});
+
+		return canvas;
+	}
+
+	function initTemplateGallery() {
+		var gallery = $('#wp-remote-og-gallery');
+		if (!gallery.length || !window.WPRemoteOG || !Array.isArray(WPRemoteOG.presets)) {
+			return;
+		}
+
+		var strings = WPRemoteOG.strings || {};
+		var status = $('#wp-remote-og-gallery-status');
+		var modal = $('#wp-remote-og-preset-modal');
+		var activeCategory = 'all';
+		var modalPreset = null;
+		var lastFocused = null;
+
+		function galleryStatus(message, type) {
+			setStatusMessage(status, message, type);
+		}
+
+		function renderCards() {
+			gallery.empty();
+			WPRemoteOG.presets.forEach(function (preset) {
+				if ('all' !== activeCategory && preset.category !== activeCategory) {
+					return;
+				}
+				var card = $('<div/>', {
+					'class': 'wp-remote-og-preset-card',
+					'data-preset': preset.key
+				});
+				var thumb = $('<div/>', {
+					'class': 'wp-remote-og-preset-thumb'
+				});
+				thumb.append(buildPresetPreview(preset.template, 300));
+				card.append(thumb);
+				var body = $('<div/>', {
+					'class': 'wp-remote-og-preset-body'
+				});
+				$('<span/>', {
+					'class': 'wp-remote-og-preset-category',
+					text: preset.category
+				}).appendTo(body);
+				$('<h3/>', {
+					'class': 'wp-remote-og-preset-name',
+					text: preset.name
+				}).appendTo(body);
+				$('<p/>', {
+					'class': 'wp-remote-og-preset-desc',
+					text: preset.description
+				}).appendTo(body);
+				var actions = $('<div/>', {
+					'class': 'wp-remote-og-preset-actions'
+				});
+				$('<button/>', {
+					type: 'button',
+					'class': 'button',
+					text: 'Preview',
+					'data-action': 'preview'
+				}).appendTo(actions);
+				$('<button/>', {
+					type: 'button',
+					'class': 'button button-primary',
+					text: 'Apply',
+					'data-action': 'apply'
+				}).appendTo(actions);
+				body.append(actions);
+				card.append(body);
+				gallery.append(card);
+			});
+		}
+
+		function openModal(preset) {
+			modalPreset = preset;
+			lastFocused = document.activeElement;
+			$('#wp-remote-og-preset-modal-title').text(preset.name);
+			modal.find('.wp-remote-og-preset-modal-desc').text(preset.description);
+			var previewWrap = modal.find('.wp-remote-og-preset-modal-preview').empty();
+			previewWrap.append(buildPresetPreview(preset.template, 640));
+			modal.find('.wp-remote-og-preset-modal-note').text(strings.previewNote || '');
+			$('#wp-remote-og-preset-apply').text(strings.apply || 'Apply template');
+			modal.prop('hidden', false);
+			$('#wp-remote-og-preset-apply').trigger('focus');
+		}
+
+		function closeModal() {
+			modal.prop('hidden', true);
+			modalPreset = null;
+			if (lastFocused && lastFocused.focus) {
+				lastFocused.focus();
+			}
+		}
+
+		function presetByKey(key) {
+			return WPRemoteOG.presets.filter(function (item) {
+				return item.key === key;
+			})[0] || null;
+		}
+
+		function applyPreset(preset, button) {
+			if (!preset) {
+				return;
+			}
+			if (!window.confirm(strings.applyConfirm || 'Apply this template? It replaces your current template.')) {
+				return;
+			}
+			if (button) {
+				button.prop('disabled', true);
+			}
+			galleryStatus('Applying template...', 'busy');
+			$.post(WPRemoteOG.ajaxUrl, {
+				action: 'wp_remote_og_apply_preset',
+				nonce: WPRemoteOG.nonce,
+				preset: preset.key
+			}).done(function (response) {
+				if (response && response.success) {
+					galleryStatus(strings.applied || 'Template applied.', 'success');
+					$('.wp-remote-og-restore-notice').prop('hidden', false);
+					closeModal();
+				} else {
+					galleryStatus(response && response.data && response.data.message ? response.data.message : (strings.applyFailed || 'Unable to apply the template.'), 'error');
+				}
+			}).fail(function () {
+				galleryStatus(strings.applyFailed || 'Unable to apply the template.', 'error');
+			}).always(function () {
+				if (button) {
+					button.prop('disabled', false);
+				}
+			});
+		}
+
+		gallery.on('click', '.wp-remote-og-preset-card [data-action]', function () {
+			var key = $(this).closest('.wp-remote-og-preset-card').data('preset');
+			var preset = presetByKey(key);
+			if (!preset) {
+				return;
+			}
+			if ('preview' === $(this).data('action')) {
+				openModal(preset);
+			} else {
+				applyPreset(preset, $(this));
+			}
+		});
+
+		$('.wp-remote-og-gallery-filters').on('click', '.wpog-filter-pill', function () {
+			activeCategory = $(this).data('category');
+			$('.wpog-filter-pill').removeClass('is-active').attr('aria-pressed', 'false');
+			$(this).addClass('is-active').attr('aria-pressed', 'true');
+			renderCards();
+		});
+
+		modal.on('click', '[data-modal-close]', closeModal);
+		$('#wp-remote-og-preset-apply').on('click', function () {
+			applyPreset(modalPreset, $(this));
+		});
+		$(document).on('keydown.wpRemoteOgModal', function (event) {
+			if ('Escape' === event.key && !modal.prop('hidden')) {
+				closeModal();
+			}
+		});
+
+		$('#wp-remote-og-restore-backup').on('click', function () {
+			if (!window.confirm(strings.restoreConfirm || 'Restore your previous template?')) {
+				return;
+			}
+			var button = $(this);
+			button.prop('disabled', true);
+			galleryStatus('Restoring previous template...', 'busy');
+			$.post(WPRemoteOG.ajaxUrl, {
+				action: 'wp_remote_og_restore_template_backup',
+				nonce: WPRemoteOG.nonce
+			}).done(function (response) {
+				if (response && response.success) {
+					galleryStatus(strings.restored || 'Previous template restored.', 'success');
+					$('.wp-remote-og-restore-notice').prop('hidden', true);
+				} else {
+					galleryStatus(response && response.data && response.data.message ? response.data.message : 'Unable to restore the template.', 'error');
+					button.prop('disabled', false);
+				}
+			}).fail(function () {
+				galleryStatus('Unable to restore the template.', 'error');
+				button.prop('disabled', false);
+			});
+		});
+
+		renderCards();
+	}
+
 	$(function () {
 		loadGoogleFontCatalog();
 		initEditor();
 		initFields();
 		initPostBox();
 		initBulkTools();
+		initTemplateGallery();
 	});
 })(jQuery);

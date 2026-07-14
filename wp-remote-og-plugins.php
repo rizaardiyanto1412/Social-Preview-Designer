@@ -30,6 +30,7 @@ final class WP_Remote_OG_Plugin {
 	const OPTION_SETTINGS           = 'wp_remote_og_settings';
 	const OPTION_TEMPLATE_VERSION   = 'wp_remote_og_template_version';
 	const OPTION_TEMPLATE_DIRTY     = 'wp_remote_og_template_needs_regeneration';
+	const OPTION_TEMPLATE_BACKUP    = 'wp_remote_og_template_backup';
 	const OPTION_GENERATION_LOG     = 'wp_remote_og_generation_log';
 	const OPTION_ACTIVATION_ERROR   = 'wp_remote_og_activation_error';
 	const OPTION_PUBLISHPRESS_AVATAR_TOKEN = 'wp_remote_og_publishpress_avatar_token';
@@ -2479,6 +2480,210 @@ final class WP_Remote_OG_SEO {
 	}
 }
 
+final class WP_Remote_OG_Presets {
+	/**
+	 * Loosely-defined built-in presets. Layers are normalized through
+	 * WP_Remote_OG_Plugin::sanitize_template() so the returned templates are
+	 * canonical (and idempotent under a second sanitize pass).
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function definitions() {
+		return array(
+			array(
+				'key'         => 'bold-left',
+				'name'        => __( 'Bold Left', 'wp-remote-og-plugins' ),
+				'category'    => 'Bold',
+				'description' => __( 'Dark canvas with a vibrant accent bar and a large left-aligned title.', 'wp-remote-og-plugins' ),
+				'layers'      => array(
+					self::rect( 'bg', 0, 0, 1200, 630, '#0f172a' ),
+					self::rect( 'accent', 90, 96, 10, 438, '#6366f1', 'vertical' ),
+					self::text( 'title', '{post_title}', 140, 150, 940, 300, '#ffffff', 78, 40, 'left', 3 ),
+					self::text( 'meta', '{taxonomy:job_type} • {taxonomy:job_location}', 140, 470, 940, 80, '#a5b4fc', 30, 20, 'left', 1 ),
+				),
+			),
+			array(
+				'key'         => 'centered-minimal',
+				'name'        => __( 'Centered Minimal', 'wp-remote-og-plugins' ),
+				'category'    => 'Minimal',
+				'description' => __( 'Clean white background with a centered title and a subtle accent divider.', 'wp-remote-og-plugins' ),
+				'layers'      => array(
+					self::rect( 'bg', 0, 0, 1200, 630, '#ffffff' ),
+					self::text( 'title', '{post_title}', 120, 200, 960, 180, '#0f172a', 66, 38, 'center', 3 ),
+					self::rect( 'divider', 510, 408, 180, 4, '#6366f1' ),
+					self::text( 'meta', '{acf:company_name}', 120, 440, 960, 60, '#64748b', 28, 18, 'center', 1 ),
+				),
+			),
+			array(
+				'key'         => 'split-accent',
+				'name'        => __( 'Split Accent', 'wp-remote-og-plugins' ),
+				'category'    => 'Job Board',
+				'description' => __( 'A coloured company panel on the left with the job title on the right.', 'wp-remote-og-plugins' ),
+				'layers'      => array(
+					self::rect( 'bg', 0, 0, 1200, 630, '#ffffff' ),
+					self::rect( 'panel', 0, 0, 460, 630, '#4f46e5' ),
+					self::text( 'company', '{acf:company_name}', 60, 70, 340, 140, '#ffffff', 34, 22, 'left', 3 ),
+					self::text( 'location', '{taxonomy:job_location}', 60, 470, 340, 100, '#c7d2fe', 24, 16, 'left', 2 ),
+					self::text( 'title', '{post_title}', 520, 150, 620, 340, '#0f172a', 60, 34, 'left', 4 ),
+				),
+			),
+			array(
+				'key'         => 'top-badge',
+				'name'        => __( 'Top Badge', 'wp-remote-og-plugins' ),
+				'category'    => 'Job Board',
+				'description' => __( 'A pill-style badge over a big title, ideal for job type or category.', 'wp-remote-og-plugins' ),
+				'layers'      => array(
+					self::rect( 'bg', 0, 0, 1200, 630, '#f8fafc' ),
+					self::rect( 'strip', 0, 0, 1200, 16, '#4f46e5' ),
+					self::rect( 'badge', 90, 84, 240, 58, '#eef2ff' ),
+					self::text( 'badge-label', '{taxonomy:job_type}', 110, 96, 210, 40, '#4338ca', 26, 18, 'left', 1 ),
+					self::text( 'title', '{post_title}', 90, 190, 1020, 320, '#0f172a', 72, 40, 'left', 3 ),
+				),
+			),
+			array(
+				'key'         => 'footer-meta',
+				'name'        => __( 'Footer Meta', 'wp-remote-og-plugins' ),
+				'category'    => 'Editorial',
+				'description' => __( 'Editorial title up top with a dark footer strip carrying the metadata.', 'wp-remote-og-plugins' ),
+				'layers'      => array(
+					self::rect( 'bg', 0, 0, 1200, 630, '#ffffff' ),
+					self::text( 'title', '{post_title}', 90, 110, 1020, 300, '#111827', 70, 40, 'left', 3 ),
+					self::rect( 'footer', 0, 540, 1200, 90, '#111827' ),
+					self::text( 'meta', '{acf:company_name} — {taxonomy:job_location}', 90, 562, 1020, 56, '#ffffff', 28, 18, 'left', 1 ),
+				),
+			),
+			array(
+				'key'         => 'dark-panel',
+				'name'        => __( 'Dark Panel', 'wp-remote-og-plugins' ),
+				'category'    => 'Editorial',
+				'description' => __( 'Moody dark background with a warm accent rule and a salary highlight.', 'wp-remote-og-plugins' ),
+				'layers'      => array(
+					self::rect( 'bg', 0, 0, 1200, 630, '#111827' ),
+					self::rect( 'rule', 90, 150, 120, 6, '#f59e0b' ),
+					self::text( 'title', '{post_title}', 90, 190, 1020, 280, '#f8fafc', 68, 38, 'left', 3 ),
+					self::text( 'salary', '{acf:salary_range}', 90, 480, 1020, 70, '#fbbf24', 30, 20, 'left', 1 ),
+				),
+			),
+			array(
+				'key'         => 'duotone-blocks',
+				'name'        => __( 'Duotone Blocks', 'wp-remote-og-plugins' ),
+				'category'    => 'Bold',
+				'description' => __( 'Two solid colour blocks with a centred title spanning the seam.', 'wp-remote-og-plugins' ),
+				'layers'      => array(
+					self::rect( 'block-top', 0, 0, 1200, 315, '#4f46e5' ),
+					self::rect( 'block-bottom', 0, 315, 1200, 315, '#0f172a' ),
+					self::text( 'title', '{post_title}', 120, 225, 960, 200, '#ffffff', 64, 36, 'center', 3 ),
+					self::text( 'meta', '{taxonomy:job_location}', 120, 430, 960, 60, '#c7d2fe', 26, 18, 'center', 1 ),
+				),
+			),
+			array(
+				'key'         => 'corner-brand',
+				'name'        => __( 'Corner Brand', 'wp-remote-og-plugins' ),
+				'category'    => 'Minimal',
+				'description' => __( 'Minimal light layout with a small corner brand mark and a strong title.', 'wp-remote-og-plugins' ),
+				'layers'      => array(
+					self::rect( 'bg', 0, 0, 1200, 630, '#ffffff' ),
+					self::rect( 'mark', 90, 80, 64, 64, '#4f46e5' ),
+					self::text( 'title', '{post_title}', 90, 200, 1020, 280, '#0f172a', 66, 38, 'left', 3 ),
+					self::text( 'location', '{taxonomy:job_location}', 90, 500, 1020, 60, '#64748b', 26, 18, 'left', 1 ),
+				),
+			),
+		);
+	}
+
+	private static function rect( $id, $x, $y, $w, $h, $color, $orientation = 'horizontal' ) {
+		return array(
+			'id'               => 'preset-' . $id,
+			'type'             => 'line',
+			'label'            => ucfirst( str_replace( '-', ' ', $id ) ),
+			'line_orientation' => 'vertical' === $orientation ? 'vertical' : 'horizontal',
+			'x'                => $x,
+			'y'                => $y,
+			'width'            => $w,
+			'height'           => $h,
+			'color'            => $color,
+		);
+	}
+
+	private static function text( $id, $content, $x, $y, $w, $h, $color, $size, $min, $align, $max_lines ) {
+		return array(
+			'id'            => 'preset-' . $id,
+			'type'          => 'text',
+			'content'       => $content,
+			'label'         => ucfirst( str_replace( '-', ' ', $id ) ),
+			'x'             => $x,
+			'y'             => $y,
+			'width'         => $w,
+			'height'        => $h,
+			'font_family'   => 'system',
+			'font_id'       => '',
+			'font_size'     => $size,
+			'min_font_size' => $min,
+			'color'         => $color,
+			'align'         => $align,
+			'line_height'   => 1.1,
+			'max_lines'     => $max_lines,
+		);
+	}
+
+	/**
+	 * All presets with canonical (sanitized) templates.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function all() {
+		$presets = array();
+		foreach ( self::definitions() as $definition ) {
+			$presets[] = array(
+				'key'         => $definition['key'],
+				'name'        => $definition['name'],
+				'category'    => $definition['category'],
+				'description' => $definition['description'],
+				'template'    => WP_Remote_OG_Plugin::sanitize_template(
+					array(
+						'background' => array( 'id' => 0, 'url' => '' ),
+						'layers'     => $definition['layers'],
+					)
+				),
+			);
+		}
+
+		return $presets;
+	}
+
+	/**
+	 * Fetch a single preset by key.
+	 *
+	 * @param string $key Preset key.
+	 * @return array<string,mixed>|null
+	 */
+	public static function get( $key ) {
+		foreach ( self::all() as $preset ) {
+			if ( $preset['key'] === $key ) {
+				return $preset;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Distinct categories in definition order.
+	 *
+	 * @return array<int,string>
+	 */
+	public static function categories() {
+		$categories = array();
+		foreach ( self::definitions() as $definition ) {
+			if ( ! in_array( $definition['category'], $categories, true ) ) {
+				$categories[] = $definition['category'];
+			}
+		}
+
+		return $categories;
+	}
+}
+
 final class WP_Remote_OG_Admin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'admin_menu' ) );
@@ -2496,6 +2701,8 @@ final class WP_Remote_OG_Admin {
 		add_action( 'wp_ajax_wp_remote_og_clear_template_notice', array( __CLASS__, 'ajax_clear_template_notice' ) );
 		add_action( 'wp_ajax_wp_remote_og_cleanup_orphans', array( __CLASS__, 'ajax_cleanup_orphans' ) );
 		add_action( 'wp_ajax_wp_remote_og_google_fonts', array( __CLASS__, 'ajax_google_fonts' ) );
+		add_action( 'wp_ajax_wp_remote_og_apply_preset', array( __CLASS__, 'ajax_apply_preset' ) );
+		add_action( 'wp_ajax_wp_remote_og_restore_template_backup', array( __CLASS__, 'ajax_restore_template_backup' ) );
 	}
 
 	public static function admin_menu() {
@@ -2511,6 +2718,7 @@ final class WP_Remote_OG_Admin {
 
 		add_submenu_page( 'wp-remote-og', __( 'Dashboard', 'wp-remote-og-plugins' ), __( 'Dashboard', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og', array( __CLASS__, 'render_dashboard_page' ) );
 		add_submenu_page( 'wp-remote-og', __( 'Template Editor', 'wp-remote-og-plugins' ), __( 'Template Editor', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-editor', array( __CLASS__, 'render_template_page' ) );
+		add_submenu_page( 'wp-remote-og', __( 'Templates', 'wp-remote-og-plugins' ), __( 'Templates', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-templates', array( __CLASS__, 'render_templates_page' ) );
 		add_submenu_page( 'wp-remote-og', __( 'Dynamic Fields', 'wp-remote-og-plugins' ), __( 'Dynamic Fields', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fields', array( __CLASS__, 'render_fields_page' ) );
 		add_submenu_page( 'wp-remote-og', __( 'Fonts', 'wp-remote-og-plugins' ), __( 'Fonts', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fonts', array( __CLASS__, 'render_fonts_page' ) );
 		add_submenu_page( 'wp-remote-og', __( 'Generation Tools', 'wp-remote-og-plugins' ), __( 'Generation Tools', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-tools', array( __CLASS__, 'render_tools_page' ) );
@@ -2543,9 +2751,21 @@ final class WP_Remote_OG_Admin {
 				'fonts'          => WP_Remote_OG_Plugin::get_fonts(),
 				'posts'          => self::post_choices(),
 				'canvas'         => array( 'width' => WP_Remote_OG_Plugin::CANVAS_WIDTH, 'height' => WP_Remote_OG_Plugin::CANVAS_HEIGHT ),
+				'presets'        => WP_Remote_OG_Presets::all(),
+				'presetCategories' => WP_Remote_OG_Presets::categories(),
+				'hasBackup'      => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP ),
+				'editorUrl'      => admin_url( 'admin.php?page=wp-remote-og-editor' ),
 				'strings'        => array(
 					'saved'      => __( 'Template saved.', 'wp-remote-og-plugins' ),
 					'generating' => __( 'Generating...', 'wp-remote-og-plugins' ),
+					'applyConfirm' => __( 'Apply this template? This replaces your current template design. Your current template will be backed up so you can restore it.', 'wp-remote-og-plugins' ),
+					'restoreConfirm' => __( 'Restore your previous template? This replaces the current design.', 'wp-remote-og-plugins' ),
+					'applied'    => __( 'Template applied. Open the Template Editor to fine-tune it.', 'wp-remote-og-plugins' ),
+					'restored'   => __( 'Previous template restored.', 'wp-remote-og-plugins' ),
+					'applyFailed' => __( 'Unable to apply the template.', 'wp-remote-og-plugins' ),
+					'previewNote' => __( 'Preview uses sample placeholder content.', 'wp-remote-og-plugins' ),
+					'close'      => __( 'Close', 'wp-remote-og-plugins' ),
+					'apply'      => __( 'Apply template', 'wp-remote-og-plugins' ),
 				),
 			)
 		);
@@ -2713,6 +2933,10 @@ final class WP_Remote_OG_Admin {
 			array(
 				'slug'  => 'wp-remote-og-editor',
 				'label' => __( 'Template Editor', 'wp-remote-og-plugins' ),
+			),
+			array(
+				'slug'  => 'wp-remote-og-templates',
+				'label' => __( 'Templates', 'wp-remote-og-plugins' ),
 			),
 			array(
 				'slug'  => 'wp-remote-og-fields',
@@ -3049,6 +3273,50 @@ final class WP_Remote_OG_Admin {
 					<?php endforeach; ?>
 				</div>
 			<?php endif; ?>
+		</div>
+		<?php
+		self::page_close();
+	}
+
+	public static function render_templates_page() {
+		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
+		}
+
+		$categories = WP_Remote_OG_Presets::categories();
+		$backup     = get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+		$has_backup = is_array( $backup ) && ! empty( $backup['template'] );
+		$backup_at  = $has_backup && ! empty( $backup['created_at'] ) ? $backup['created_at'] : '';
+
+		self::page_open( 'wp-remote-og-templates', __( 'Templates', 'wp-remote-og-plugins' ), __( 'Start from a polished preset, then customize it in the editor. Applying a preset replaces your current template.', 'wp-remote-og-plugins' ) );
+		?>
+		<div class="wpog-notice is-info wp-remote-og-restore-notice"<?php echo $has_backup ? '' : ' hidden'; ?>>
+			<p>
+				<strong><?php esc_html_e( 'A previous template is saved.', 'wp-remote-og-plugins' ); ?></strong>
+				<span class="wp-remote-og-restore-meta"><?php echo $backup_at ? esc_html( sprintf( /* translators: %s: date/time. */ __( 'Backed up %s.', 'wp-remote-og-plugins' ), $backup_at ) ) : ''; ?></span>
+				<button type="button" class="button button-small" id="wp-remote-og-restore-backup"><?php esc_html_e( 'Restore previous template', 'wp-remote-og-plugins' ); ?></button>
+			</p>
+		</div>
+		<div class="wp-remote-og-gallery-status" id="wp-remote-og-gallery-status" aria-live="polite"></div>
+		<div class="wp-remote-og-gallery-filters" role="tablist" aria-label="<?php esc_attr_e( 'Filter templates by category', 'wp-remote-og-plugins' ); ?>">
+			<button type="button" class="wpog-filter-pill is-active" data-category="all" aria-pressed="true"><?php esc_html_e( 'All', 'wp-remote-og-plugins' ); ?></button>
+			<?php foreach ( $categories as $category ) : ?>
+				<button type="button" class="wpog-filter-pill" data-category="<?php echo esc_attr( $category ); ?>" aria-pressed="false"><?php echo esc_html( $category ); ?></button>
+			<?php endforeach; ?>
+		</div>
+		<div class="wp-remote-og-gallery" id="wp-remote-og-gallery" aria-live="polite"></div>
+		<div class="wp-remote-og-preset-modal" id="wp-remote-og-preset-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-preset-modal-title" hidden>
+			<div class="wp-remote-og-preset-modal-backdrop" data-modal-close="1"></div>
+			<div class="wp-remote-og-preset-modal-panel">
+				<button type="button" class="wp-remote-og-preset-modal-close" data-modal-close="1" aria-label="<?php esc_attr_e( 'Close', 'wp-remote-og-plugins' ); ?>">&times;</button>
+				<h2 id="wp-remote-og-preset-modal-title" class="wp-remote-og-preset-modal-heading"></h2>
+				<p class="wp-remote-og-preset-modal-desc"></p>
+				<div class="wp-remote-og-preset-modal-preview"></div>
+				<p class="wp-remote-og-preset-modal-note"></p>
+				<div class="wp-remote-og-preset-modal-actions">
+					<button type="button" class="button button-primary" id="wp-remote-og-preset-apply"></button>
+				</div>
+			</div>
 		</div>
 		<?php
 		self::page_close();
@@ -3576,6 +3844,54 @@ final class WP_Remote_OG_Admin {
 			array(
 				'fonts' => array_values( $fonts ),
 				'count' => count( $fonts ),
+			)
+		);
+	}
+
+	public static function ajax_apply_preset() {
+		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
+		$key    = isset( $_POST['preset'] ) ? sanitize_key( wp_unslash( $_POST['preset'] ) ) : '';
+		$preset = WP_Remote_OG_Presets::get( $key );
+		if ( ! $preset ) {
+			wp_send_json_error( array( 'message' => __( 'Unknown template preset.', 'wp-remote-og-plugins' ) ), 400 );
+		}
+
+		update_option(
+			WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP,
+			array(
+				'template'   => WP_Remote_OG_Plugin::get_template(),
+				'created_at' => current_time( 'mysql' ),
+			),
+			false
+		);
+
+		$template = WP_Remote_OG_Plugin::save_template( $preset['template'] );
+
+		wp_send_json_success(
+			array(
+				'template' => $template,
+				'preset'   => $preset['key'],
+				'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
+				'backup'   => true,
+			)
+		);
+	}
+
+	public static function ajax_restore_template_backup() {
+		self::verify_ajax();
+		$backup = get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+		if ( ! is_array( $backup ) || empty( $backup['template'] ) ) {
+			wp_send_json_error( array( 'message' => __( 'No previous template is available to restore.', 'wp-remote-og-plugins' ) ), 400 );
+		}
+
+		$template = WP_Remote_OG_Plugin::save_template( $backup['template'] );
+		delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+
+		wp_send_json_success(
+			array(
+				'template' => $template,
+				'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
 			)
 		);
 	}
