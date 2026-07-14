@@ -1021,9 +1021,6 @@
 
 	function fillControls(layer) {
 		state.suspendControls = true;
-		// Begin a fresh colour-edit session so the next genuine change records one
-		// history entry rather than one per picker move.
-		state.colorEditActive = false;
 		if (!layer) {
 			$('.wp-remote-og-controls input, .wp-remote-og-controls select').val('');
 			$('#wp-remote-og-layer-type').val('text');
@@ -1076,6 +1073,14 @@
 		if (!layer) {
 			return;
 		}
+
+		// Value-based change detection: capture the layer (and a full-template
+		// snapshot for history) before mutating, then only mark dirty / push history
+		// if something actually changed. This is categorical — no timing assumptions —
+		// so zero-op invocations from any path (e.g. the debounced color picker firing
+		// during selection) never dirty the template or pollute history.
+		var beforeLayer = JSON.stringify(layer);
+		var beforeSnapshot = snapshotTemplate();
 
 		var selectedTypeValue = $('#wp-remote-og-layer-type').val();
 		var selectedType = ['image', 'line'].indexOf(selectedTypeValue) >= 0 ? selectedTypeValue : 'text';
@@ -1130,7 +1135,12 @@
 			layer.width = layerWidth;
 			layer.height = layerHeight;
 		}
-		markDirty(true);
+
+		if (JSON.stringify(layer) !== beforeLayer) {
+			pushHistory(beforeSnapshot);
+			markDirty(true);
+		}
+
 		renderLayerList();
 		renderCanvas();
 		if ('wp-remote-og-layer-type' === changedFieldId || 'wp-remote-og-layer-line-orientation' === changedFieldId) {
@@ -1377,19 +1387,9 @@
 
 		$('.wp-remote-og-color').wpColorPicker({
 			change: function () {
-				// The picker fires this while fillControls() populates the swatch under
-				// suspendControls. Capture that state now: the deferred update below would
-				// otherwise run after suspendControls is reset and falsely mark dirty.
-				if (state.suspendControls) {
-					return;
-				}
-				// Record a single pre-edit history entry for a genuine colour change. The
-				// picker's native change event does not bubble to the delegated
-				// preEditSnapshot handler, so history is captured here instead.
-				if (!state.colorEditActive) {
-					pushHistory(snapshotTemplate());
-					state.colorEditActive = true;
-				}
+				// updateSelectedLayerFromControls is value-based, so it is safe to call
+				// from the picker's debounced callback: a no-op change (e.g. while
+				// fillControls populated the swatch) will not dirty the template.
 				setTimeout(updateSelectedLayerFromControls, 0);
 			}
 		});
@@ -1449,7 +1449,6 @@
 				$(this).val('');
 				return;
 			}
-			recordHistory();
 			var input = $('#wp-remote-og-layer-content');
 			if ('image' === layer.type) {
 				input.val(token);
@@ -1486,22 +1485,6 @@
 		});
 		$('#wp-remote-og-undo').on('click', undoHistory);
 		$('#wp-remote-og-redo').on('click', redoHistory);
-
-		// Capture a pre-edit snapshot when a control gains focus so field edits are undoable.
-		$('.wp-remote-og-controls').on('focusin', 'input, select', function () {
-			state.preEditSnapshot = snapshotTemplate();
-		});
-		$('.wp-remote-og-controls').on('change', 'input, select', function () {
-			// Ignore programmatic changes fired while populating controls (e.g. the
-			// color picker's trigger('change') inside fillControls) — those are zero-ops.
-			if (state.suspendControls) {
-				return;
-			}
-			if (state.preEditSnapshot) {
-				pushHistory(state.preEditSnapshot);
-				state.preEditSnapshot = null;
-			}
-		});
 
 		initOverflowMenus();
 
