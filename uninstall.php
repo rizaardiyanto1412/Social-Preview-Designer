@@ -20,6 +20,7 @@ $wp_remote_og_options = array(
 	'wp_remote_og_settings',
 	'wp_remote_og_template_version',
 	'wp_remote_og_template_needs_regeneration',
+	'wp_remote_og_template_backup',
 	'wp_remote_og_generation_log',
 	'wp_remote_og_activation_error',
 	'wp_remote_og_publishpress_avatar_token',

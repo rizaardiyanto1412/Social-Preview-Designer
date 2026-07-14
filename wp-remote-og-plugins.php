@@ -2757,7 +2757,10 @@ final class WP_Remote_OG_Admin {
 				'editorUrl'      => admin_url( 'admin.php?page=wp-remote-og-editor' ),
 				'strings'        => array(
 					'saved'      => __( 'Template saved.', 'wp-remote-og-plugins' ),
+					'savedShort' => __( 'Saved', 'wp-remote-og-plugins' ),
+					'saveError'  => __( 'Save failed', 'wp-remote-og-plugins' ),
 					'generating' => __( 'Generating...', 'wp-remote-og-plugins' ),
+					'googleFontListFallback' => __( 'Unable to load Google font directory. You can still type the font name manually.', 'wp-remote-og-plugins' ),
 					'applyConfirm' => __( 'Apply this template? This replaces your current template design. Your current template will be backed up so you can restore it.', 'wp-remote-og-plugins' ),
 					'restoreConfirm' => __( 'Restore your previous template? This replaces the current design.', 'wp-remote-og-plugins' ),
 					'applied'    => __( 'Template applied. Open the Template Editor to fine-tune it.', 'wp-remote-og-plugins' ),
@@ -3327,19 +3330,19 @@ final class WP_Remote_OG_Admin {
 			</p>
 		</div>
 		<div class="wp-remote-og-gallery-status" id="wp-remote-og-gallery-status" aria-live="polite"></div>
-		<div class="wp-remote-og-gallery-filters" role="tablist" aria-label="<?php esc_attr_e( 'Filter templates by category', 'wp-remote-og-plugins' ); ?>">
+		<div class="wp-remote-og-gallery-filters" role="group" aria-label="<?php esc_attr_e( 'Filter templates by category', 'wp-remote-og-plugins' ); ?>">
 			<button type="button" class="wpog-filter-pill is-active" data-category="all" aria-pressed="true"><?php esc_html_e( 'All', 'wp-remote-og-plugins' ); ?></button>
 			<?php foreach ( $categories as $category ) : ?>
 				<button type="button" class="wpog-filter-pill" data-category="<?php echo esc_attr( $category ); ?>" aria-pressed="false"><?php echo esc_html( $category ); ?></button>
 			<?php endforeach; ?>
 		</div>
-		<div class="wp-remote-og-gallery" id="wp-remote-og-gallery" aria-live="polite"></div>
-		<div class="wp-remote-og-preset-modal" id="wp-remote-og-preset-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-preset-modal-title" hidden>
+		<div class="wp-remote-og-gallery" id="wp-remote-og-gallery"></div>
+		<div class="wp-remote-og-preset-modal" id="wp-remote-og-preset-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-preset-modal-title" aria-describedby="wp-remote-og-preset-modal-desc" hidden>
 			<div class="wp-remote-og-preset-modal-backdrop" data-modal-close="1"></div>
 			<div class="wp-remote-og-preset-modal-panel">
 				<button type="button" class="wp-remote-og-preset-modal-close" data-modal-close="1" aria-label="<?php esc_attr_e( 'Close', 'wp-remote-og-plugins' ); ?>">&times;</button>
 				<h2 id="wp-remote-og-preset-modal-title" class="wp-remote-og-preset-modal-heading"></h2>
-				<p class="wp-remote-og-preset-modal-desc"></p>
+				<p id="wp-remote-og-preset-modal-desc" class="wp-remote-og-preset-modal-desc"></p>
 				<div class="wp-remote-og-preset-modal-preview"></div>
 				<p class="wp-remote-og-preset-modal-note"></p>
 				<div class="wp-remote-og-preset-modal-actions">

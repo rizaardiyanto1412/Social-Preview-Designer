@@ -456,8 +456,8 @@
 .wp-remote-og-font-suggestion:hover,
 .wp-remote-og-font-suggestion:focus,
 .wp-remote-og-font-suggestion.is-active {
-	background: #f0f6fc;
-	color: #0a4b78;
+	background: var(--wpog-accent-soft);
+	color: var(--wpog-accent-hover);
 	outline: none;
 }
 
@@ -526,7 +526,7 @@
 }
 
 .wp-remote-og-safe-area {
-	border: 2px dashed rgba(34, 113, 177, 0.55);
+	border: 2px dashed rgba(79, 70, 229, 0.45);
 	inset: 48px 72px;
 	pointer-events: none;
 	position: absolute;
@@ -623,7 +623,7 @@
 
 .wp-remote-og-layer.is-selected {
 	border: 2px solid var(--wpog-accent);
-	box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.35), 0 4px 12px rgba(0, 0, 0, 0.18);
+	box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.35), 0 4px 12px rgba(0, 0, 0, 0.18);
 	z-index: 4;
 }
 
@@ -694,8 +694,8 @@
 }
 
 .wp-remote-og-layer-list li.is-selected {
-	background: #e7f2fa;
-	color: #0a4b78;
+	background: var(--wpog-accent-soft);
+	color: var(--wpog-accent-hover);
 	font-weight: 600;
 }
 
@@ -1296,6 +1296,16 @@
 
 .wpog-dirty.is-dirty {
 	color: var(--wpog-warn);
+	font-weight: 600;
+}
+
+.wpog-dirty.is-saved {
+	color: var(--wpog-good);
+	font-weight: 600;
+}
+
+.wpog-dirty.is-error {
+	color: var(--wpog-bad);
 	font-weight: 600;
 }
 

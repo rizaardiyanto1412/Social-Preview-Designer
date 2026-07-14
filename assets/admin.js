@@ -32,6 +32,21 @@
 		}
 	}
 
+	function flashDirtyIndicator(text, cls) {
+		var indicator = $('#wp-remote-og-dirty-indicator');
+		if (!indicator.length) {
+			return;
+		}
+		if (state.dirtyFlashTimer) {
+			window.clearTimeout(state.dirtyFlashTimer);
+		}
+		indicator.removeClass('is-dirty is-saved is-error').addClass(cls).text(text);
+		state.dirtyFlashTimer = window.setTimeout(function () {
+			// Revert to the current persistent state (saved/unsaved) after the flash.
+			markDirty(state.dirtySinceSave);
+		}, 2200);
+	}
+
 	function updateHistoryButtons() {
 		$('#wp-remote-og-undo').prop('disabled', !state.history.undo.length);
 		$('#wp-remote-og-redo').prop('disabled', !state.history.redo.length);
@@ -345,15 +360,29 @@
 		if (!frame.length) {
 			return 1;
 		}
-		var available = frame.width() - 24;
+		var available = frame.width();
+		if (!available || available <= 0) {
+			return 1;
+		}
 		return Math.min(1, available / 1200);
 	}
 
 	function applyCanvasScale() {
+		var scale = canvasScale();
+		state.canvasScale = scale;
+		// Scale the 1200x630 artboard, then collapse its layout footprint with negative
+		// margins so the frame does not force horizontal/vertical scrollbars.
 		$('#wp-remote-og-canvas').css({
-			transform: 'none',
-			marginBottom: '0'
+			transform: 'scale(' + scale + ')',
+			transformOrigin: 'top left',
+			marginRight: -Math.round(1200 * (1 - scale)) + 'px',
+			marginBottom: -Math.round(630 * (1 - scale)) + 'px'
 		});
+	}
+
+	function activeCanvasScale() {
+		var scale = state.canvasScale;
+		return scale && scale > 0 ? scale : 1;
 	}
 
 	function renderCanvas() {
@@ -526,8 +555,9 @@
 			return;
 		}
 
-		var deltaX = event.clientX - state.interaction.startX;
-		var deltaY = event.clientY - state.interaction.startY;
+		var scale = activeCanvasScale();
+		var deltaX = (event.clientX - state.interaction.startX) / scale;
+		var deltaY = (event.clientY - state.interaction.startY) / scale;
 
 		if (state.interaction.type === 'move') {
 			layer.x = Math.round(clamp(state.interaction.x + deltaX, 0, 1200 - layer.width));
@@ -935,13 +965,19 @@
 		}
 
 		list.empty();
-		state.template.layers.forEach(function (layer) {
+		var hasSelection = state.template.layers.some(function (layer) {
+			return layer.id === state.selectedLayerId;
+		});
+		state.template.layers.forEach(function (layer, index) {
 			var labelText = layer.label || ('line' === layer.type ? lineLayerLabel(layer) : layer.content) || layer.id;
+			var isSelected = layer.id === state.selectedLayerId;
+			// Roving tabindex: only the selected (or first, if none selected) item is tabbable.
+			var tabbable = isSelected || (!hasSelection && 0 === index);
 			var item = $('<li/>', {
 				'data-layer-id': layer.id,
-				tabindex: 0,
+				tabindex: tabbable ? 0 : -1,
 				role: 'option',
-				'aria-selected': layer.id === state.selectedLayerId ? 'true' : 'false'
+				'aria-selected': isSelected ? 'true' : 'false'
 			});
 			$('<span/>', {
 				'class': 'wp-remote-og-layer-icon',
@@ -1239,13 +1275,16 @@
 					state.selectedLayerId = selectedId;
 				}
 				markDirty(false);
+				flashDirtyIndicator(WPRemoteOG.strings.savedShort || 'Saved', 'is-saved');
 				renderLayerList();
 				renderCanvas();
 				setStatusMessage(status, WPRemoteOG.strings.saved, 'success');
 			} else {
+				flashDirtyIndicator(WPRemoteOG.strings.saveError || 'Save failed', 'is-error');
 				setStatusMessage(status, response.data && response.data.message ? response.data.message : 'Unable to save template.', 'error');
 			}
 		}).fail(function () {
+			flashDirtyIndicator(WPRemoteOG.strings.saveError || 'Save failed', 'is-error');
 			setStatusMessage(status, 'Unable to save template.', 'error');
 		}).always(function () {
 			button.prop('disabled', false).removeClass('is-busy');
@@ -1333,11 +1372,29 @@
 		$('#wp-remote-og-add-vertical-line').on('click', function () {
 			addLineLayer('vertical');
 		});
-		$('#wp-remote-og-refresh-preview, #wp-remote-og-preview-post').on('click change', refreshPreview);
+		$('#wp-remote-og-refresh-preview').on('click', refreshPreview);
+		$('#wp-remote-og-preview-post').on('change', refreshPreview);
 		$('#wp-remote-og-layer-list').on('click', 'li', function () {
 			selectLayer($(this).data('layer-id'));
 		});
 		$('#wp-remote-og-layer-list').on('keydown', 'li', function (event) {
+			if ('ArrowDown' === event.key || 'ArrowUp' === event.key) {
+				event.preventDefault();
+				var items = $('#wp-remote-og-layer-list li');
+				var index = items.index(this);
+				var next = 'ArrowDown' === event.key ? index + 1 : index - 1;
+				if (next < 0) {
+					next = items.length - 1;
+				} else if (next >= items.length) {
+					next = 0;
+				}
+				var target = items.eq(next);
+				if (target.length) {
+					selectLayer(target.data('layer-id'));
+					$('#wp-remote-og-layer-list li[data-layer-id="' + target.data('layer-id') + '"]').trigger('focus');
+				}
+				return;
+			}
 			if ('Enter' !== event.key && ' ' !== event.key && 'Spacebar' !== event.key) {
 				return;
 			}
@@ -1449,6 +1506,10 @@
 		});
 	}
 
+	function overflowMenuItems(menu) {
+		return menu.find('.wpog-overflow-item').filter(':visible');
+	}
+
 	function initOverflowMenus() {
 		$(document).on('click', '[data-overflow-toggle]', function (event) {
 			event.preventDefault();
@@ -1459,6 +1520,39 @@
 			closeOverflowMenus(wrap[0]);
 			menu.prop('hidden', !willOpen);
 			$(this).attr('aria-expanded', willOpen ? 'true' : 'false');
+			if (willOpen) {
+				overflowMenuItems(menu).first().trigger('focus');
+			}
+		});
+		$(document).on('keydown', '[data-overflow-toggle]', function (event) {
+			if ('ArrowDown' === event.key || 'ArrowUp' === event.key) {
+				event.preventDefault();
+				var menu = $(this).closest('.wpog-overflow').find('.wpog-overflow-menu');
+				if (menu.prop('hidden')) {
+					$(this).trigger('click');
+					return;
+				}
+				var items = overflowMenuItems(menu);
+				items.eq('ArrowDown' === event.key ? 0 : items.length - 1).trigger('focus');
+			}
+		});
+		$(document).on('keydown', '.wpog-overflow-menu', function (event) {
+			if ('ArrowDown' !== event.key && 'ArrowUp' !== event.key) {
+				return;
+			}
+			event.preventDefault();
+			var items = overflowMenuItems($(this));
+			if (!items.length) {
+				return;
+			}
+			var index = items.index(document.activeElement);
+			var next = 'ArrowDown' === event.key ? index + 1 : index - 1;
+			if (next < 0) {
+				next = items.length - 1;
+			} else if (next >= items.length) {
+				next = 0;
+			}
+			items.eq(next).trigger('focus');
 		});
 		$(document).on('click', '.wpog-overflow-item', function () {
 			closeOverflowMenus();
@@ -1469,8 +1563,15 @@
 			}
 		});
 		$(document).on('keydown.wpRemoteOgOverflow', function (event) {
-			if ('Escape' === event.key) {
-				closeOverflowMenus();
+			if ('Escape' !== event.key) {
+				return;
+			}
+			var openWrap = $('.wpog-overflow').filter(function () {
+				return !$(this).find('.wpog-overflow-menu').prop('hidden');
+			}).first();
+			closeOverflowMenus();
+			if (openWrap.length) {
+				openWrap.find('[data-overflow-toggle]').trigger('focus');
 			}
 		});
 	}
@@ -1673,7 +1774,7 @@
 	function processBulk(ids, done, errors, mode) {
 		var progress = $('#wp-remote-og-progress');
 		if (!ids.length) {
-			setStatusMessage(progress, 'No posts need processing.', '');
+			setStatusMessage(progress, 'No posts need processing.', 'success');
 			return;
 		}
 
@@ -1708,11 +1809,11 @@
 	}
 
 	var PREVIEW_TOKEN_SAMPLES = {
-		'{post_title}': 'Senior Product Designer (Remote)',
-		'{taxonomy:job_location}': 'Remote — Worldwide',
-		'{taxonomy:job_type}': 'Full-time',
-		'{acf:company_name}': 'Northwind Studio',
-		'{acf:salary_range}': '$120k – $150k'
+		'{post_title}': 'Your Post Title Goes Here',
+		'{taxonomy:job_location}': 'Location Name',
+		'{taxonomy:job_type}': 'Category Name',
+		'{acf:company_name}': 'Your Brand Name',
+		'{acf:salary_range}': 'Highlight Detail'
 	};
 
 	function samplePreviewText(content) {
@@ -1791,10 +1892,12 @@
 
 		function renderCards() {
 			gallery.empty();
+			var shown = 0;
 			WPRemoteOG.presets.forEach(function (preset) {
 				if ('all' !== activeCategory && preset.category !== activeCategory) {
 					return;
 				}
+				shown++;
 				var card = $('<div/>', {
 					'class': 'wp-remote-og-preset-card',
 					'data-preset': preset.key
@@ -1838,6 +1941,19 @@
 				card.append(body);
 				gallery.append(card);
 			});
+			return shown;
+		}
+
+		function announceFilter(count) {
+			var label = 1 === count ? '1 template' : count + ' templates';
+			if ('all' !== activeCategory) {
+				label += ' in ' + activeCategory;
+			}
+			galleryStatus(label, '');
+		}
+
+		function modalFocusables() {
+			return modal.find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible');
 		}
 
 		function openModal(preset) {
@@ -1854,12 +1970,34 @@
 		}
 
 		function closeModal() {
+			if (modal.prop('hidden')) {
+				return;
+			}
 			modal.prop('hidden', true);
 			modalPreset = null;
 			if (lastFocused && lastFocused.focus) {
 				lastFocused.focus();
 			}
 		}
+
+		modal.on('keydown', function (event) {
+			if ('Tab' !== event.key || modal.prop('hidden')) {
+				return;
+			}
+			var focusables = modalFocusables();
+			if (!focusables.length) {
+				return;
+			}
+			var first = focusables[0];
+			var last = focusables[focusables.length - 1];
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first.focus();
+			}
+		});
 
 		function presetByKey(key) {
 			return WPRemoteOG.presets.filter(function (item) {
@@ -1916,7 +2054,7 @@
 			activeCategory = $(this).data('category');
 			$('.wpog-filter-pill').removeClass('is-active').attr('aria-pressed', 'false');
 			$(this).addClass('is-active').attr('aria-pressed', 'true');
-			renderCards();
+			announceFilter(renderCards());
 		});
 
 		modal.on('click', '[data-modal-close]', closeModal);
