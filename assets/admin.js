@@ -500,14 +500,16 @@
 			return;
 		}
 
-		recordHistory();
 		state.interaction = {
 			type: 'move',
 			id: id,
 			startX: event.clientX,
 			startY: event.clientY,
 			x: layer.x,
-			y: layer.y
+			y: layer.y,
+			width: layer.width,
+			height: layer.height,
+			snapshot: snapshotTemplate()
 		};
 		bindDocumentInteraction();
 		event.preventDefault();
@@ -521,7 +523,6 @@
 			return;
 		}
 
-		recordHistory();
 		state.interaction = {
 			type: 'resize',
 			id: id,
@@ -531,7 +532,8 @@
 			x: layer.x,
 			y: layer.y,
 			width: layer.width,
-			height: layer.height
+			height: layer.height,
+			snapshot: snapshotTemplate()
 		};
 		bindDocumentInteraction();
 		event.preventDefault();
@@ -586,8 +588,22 @@
 	}
 
 	function endInteraction() {
+		var interaction = state.interaction;
 		state.interaction = null;
 		$(document).off('mousemove.wpRemoteOgInteraction mouseup.wpRemoteOgInteraction');
+
+		if (interaction) {
+			var layer = state.template.layers.find(function (candidate) {
+				return candidate.id === interaction.id;
+			});
+			// Only record history / mark dirty when the geometry actually changed.
+			// A pure click-to-select (zero movement) leaves everything untouched.
+			if (layer && (layer.x !== interaction.x || layer.y !== interaction.y || layer.width !== interaction.width || layer.height !== interaction.height)) {
+				pushHistory(interaction.snapshot);
+				markDirty(true);
+			}
+		}
+
 		renderLayerList();
 	}
 
@@ -1460,6 +1476,11 @@
 			state.preEditSnapshot = snapshotTemplate();
 		});
 		$('.wp-remote-og-controls').on('change', 'input, select', function () {
+			// Ignore programmatic changes fired while populating controls (e.g. the
+			// color picker's trigger('change') inside fillControls) — those are zero-ops.
+			if (state.suspendControls) {
+				return;
+			}
 			if (state.preEditSnapshot) {
 				pushHistory(state.preEditSnapshot);
 				state.preEditSnapshot = null;
