@@ -2725,6 +2725,22 @@ final class WP_Remote_OG_Admin {
 		add_submenu_page( 'wp-remote-og', __( 'Diagnostics', 'wp-remote-og-plugins' ), __( 'Diagnostics', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-diagnostics', array( __CLASS__, 'render_diagnostics_page' ) );
 	}
 
+	/**
+	 * Version string for a bundled asset.
+	 *
+	 * Uses the file modification time so browsers and edge caches (e.g. a CDN in
+	 * front of the site) fetch the current asset whenever it changes, instead of
+	 * serving a stale copy keyed on a static plugin version.
+	 *
+	 * @param string $relative_path Path relative to the plugin directory.
+	 * @return string
+	 */
+	private static function asset_version( $relative_path ) {
+		$file = WP_REMOTE_OG_DIR . ltrim( $relative_path, '/' );
+		$mtime = file_exists( $file ) ? filemtime( $file ) : 0;
+		return $mtime ? WP_REMOTE_OG_VERSION . '.' . $mtime : WP_REMOTE_OG_VERSION;
+	}
+
 	public static function enqueue_assets( $hook ) {
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 		$is_plugin_screen = false !== strpos( (string) $hook, 'wp-remote-og' );
@@ -2736,8 +2752,8 @@ final class WP_Remote_OG_Admin {
 
 		wp_enqueue_media();
 		wp_enqueue_style( 'wp-color-picker' );
-		wp_enqueue_style( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.css', array( 'wp-color-picker' ), WP_REMOTE_OG_VERSION );
-		wp_enqueue_script( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.js', array( 'jquery', 'jquery-ui-draggable', 'jquery-ui-resizable', 'wp-color-picker' ), WP_REMOTE_OG_VERSION, true );
+		wp_enqueue_style( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.css', array( 'wp-color-picker' ), self::asset_version( 'assets/admin.css' ) );
+		wp_enqueue_script( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.js', array( 'jquery', 'jquery-ui-draggable', 'jquery-ui-resizable', 'wp-color-picker' ), self::asset_version( 'assets/admin.js' ), true );
 
 		wp_localize_script(
 			'wp-remote-og-admin',
