@@ -725,11 +725,25 @@ final class WP_Remote_OG_Uploads {
 }
 
 final class WP_Remote_OG_Diagnostics {
+	/**
+	 * Per-request cache. The diagnostics payload runs several DB counts and a
+	 * filesystem scan (orphan detection); it can be requested multiple times
+	 * within a single admin request (notices + dashboard/diagnostics render),
+	 * so compute it at most once per request.
+	 *
+	 * @var array|null
+	 */
+	private static $cache = null;
+
 	public static function get() {
+		if ( null !== self::$cache ) {
+			return self::$cache;
+		}
+
 		$directory = WP_Remote_OG_Uploads::ensure_directory();
 		$path      = is_wp_error( $directory ) ? '' : $directory['path'];
 
-		return array(
+		self::$cache = array(
 			'imagick'          => class_exists( 'Imagick' ),
 			'gd'               => function_exists( 'imagecreatetruecolor' ),
 			'rank_math'        => WP_Remote_OG_SEO::is_rank_math_active(),
@@ -741,6 +755,16 @@ final class WP_Remote_OG_Diagnostics {
 			'orphaned_count'   => self::orphaned_count(),
 			'last_bulk_result' => self::last_bulk_result(),
 		);
+
+		return self::$cache;
+	}
+
+	/**
+	 * Reset the per-request diagnostics cache. Used by tests and after
+	 * operations that change the counts within the same request.
+	 */
+	public static function flush_cache() {
+		self::$cache = null;
 	}
 
 	public static function generated_count() {
