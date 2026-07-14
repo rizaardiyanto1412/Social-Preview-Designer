@@ -21,9 +21,11 @@ Comprehensive redesign of the plugin admin experience (branch
    area) shared by every screen. Restyled Dynamic Fields, Fonts, Generation
    Tools, and Diagnostics into card-based layouts with status badges, styled
    notices, and `:focus-visible` states.
-2. **Dashboard.** The top-level slug `wp-remote-og` now renders a Dashboard; the
-   editor moved to `wp-remote-og-editor` (import redirect + nav updated, old
-   links still reach the editor). Dashboard shows a live readiness checklist
+2. **Dashboard.** The Dashboard has its own distinct top-level slug
+   `wp-remote-og-dashboard`; the editor lives at `wp-remote-og-editor`. The
+   legacy bare `wp-remote-og` slug (which historically opened the Template
+   Editor) is aliased via an `admin_init` redirect to `wp-remote-og-editor`, so
+   old editor bookmarks keep working. Dashboard shows a live readiness checklist
    with fix links, generation-health counts (single queries via Diagnostics),
    quick actions, and recently generated images with an onboarding empty state.
 3. **Template gallery.** New `wp-remote-og-templates` page and

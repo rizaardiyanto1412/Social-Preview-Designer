@@ -2709,8 +2709,17 @@ final class WP_Remote_OG_Presets {
 }
 
 final class WP_Remote_OG_Admin {
+	// Distinct slug for the redesigned Dashboard. The bare "wp-remote-og" slug
+	// historically pointed at the Template Editor, so we keep it working as a
+	// redirect/alias to the editor for existing bookmarks (see
+	// maybe_redirect_legacy_editor()).
+	const DASHBOARD_SLUG = 'wp-remote-og-dashboard';
+	const LEGACY_EDITOR_SLUG = 'wp-remote-og';
+	const EDITOR_SLUG = 'wp-remote-og-editor';
+
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'admin_menu' ) );
+		add_action( 'admin_init', array( __CLASS__, 'maybe_redirect_legacy_editor' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'admin_notices' ) );
 		add_action( 'add_meta_boxes_post', array( __CLASS__, 'add_meta_box' ) );
@@ -2730,23 +2739,53 @@ final class WP_Remote_OG_Admin {
 	}
 
 	public static function admin_menu() {
+		$parent = self::DASHBOARD_SLUG;
+
 		add_menu_page(
 			__( 'Social Preview Designer', 'wp-remote-og-plugins' ),
 			__( 'Social Preview Designer', 'wp-remote-og-plugins' ),
 			WP_Remote_OG_Plugin::capability(),
-			'wp-remote-og',
+			$parent,
 			array( __CLASS__, 'render_dashboard_page' ),
 			'dashicons-format-image',
 			58
 		);
 
-		add_submenu_page( 'wp-remote-og', __( 'Dashboard', 'wp-remote-og-plugins' ), __( 'Dashboard', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og', array( __CLASS__, 'render_dashboard_page' ) );
-		add_submenu_page( 'wp-remote-og', __( 'Template Editor', 'wp-remote-og-plugins' ), __( 'Template Editor', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-editor', array( __CLASS__, 'render_template_page' ) );
-		add_submenu_page( 'wp-remote-og', __( 'Templates', 'wp-remote-og-plugins' ), __( 'Templates', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-templates', array( __CLASS__, 'render_templates_page' ) );
-		add_submenu_page( 'wp-remote-og', __( 'Dynamic Fields', 'wp-remote-og-plugins' ), __( 'Dynamic Fields', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fields', array( __CLASS__, 'render_fields_page' ) );
-		add_submenu_page( 'wp-remote-og', __( 'Fonts', 'wp-remote-og-plugins' ), __( 'Fonts', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fonts', array( __CLASS__, 'render_fonts_page' ) );
-		add_submenu_page( 'wp-remote-og', __( 'Generation Tools', 'wp-remote-og-plugins' ), __( 'Generation Tools', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-tools', array( __CLASS__, 'render_tools_page' ) );
-		add_submenu_page( 'wp-remote-og', __( 'Diagnostics', 'wp-remote-og-plugins' ), __( 'Diagnostics', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-diagnostics', array( __CLASS__, 'render_diagnostics_page' ) );
+		add_submenu_page( $parent, __( 'Dashboard', 'wp-remote-og-plugins' ), __( 'Dashboard', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), $parent, array( __CLASS__, 'render_dashboard_page' ) );
+		add_submenu_page( $parent, __( 'Template Editor', 'wp-remote-og-plugins' ), __( 'Template Editor', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), self::EDITOR_SLUG, array( __CLASS__, 'render_template_page' ) );
+		add_submenu_page( $parent, __( 'Templates', 'wp-remote-og-plugins' ), __( 'Templates', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-templates', array( __CLASS__, 'render_templates_page' ) );
+		add_submenu_page( $parent, __( 'Dynamic Fields', 'wp-remote-og-plugins' ), __( 'Dynamic Fields', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fields', array( __CLASS__, 'render_fields_page' ) );
+		add_submenu_page( $parent, __( 'Fonts', 'wp-remote-og-plugins' ), __( 'Fonts', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fonts', array( __CLASS__, 'render_fonts_page' ) );
+		add_submenu_page( $parent, __( 'Generation Tools', 'wp-remote-og-plugins' ), __( 'Generation Tools', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-tools', array( __CLASS__, 'render_tools_page' ) );
+		add_submenu_page( $parent, __( 'Diagnostics', 'wp-remote-og-plugins' ), __( 'Diagnostics', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-diagnostics', array( __CLASS__, 'render_diagnostics_page' ) );
+	}
+
+	/**
+	 * Preserve pre-redesign bookmarks: the Template Editor used to live at the
+	 * bare "wp-remote-og" slug, which is now the Dashboard's distinct slug's
+	 * predecessor. Redirect any request for the legacy slug to the editor so
+	 * existing bookmarks and links keep working, carrying through any extra
+	 * query args.
+	 */
+	public static function maybe_redirect_legacy_editor() {
+		if ( ! is_admin() || wp_doing_ajax() ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only navigation redirect; no state change.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		if ( self::LEGACY_EDITOR_SLUG !== $page ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only navigation redirect; no state change.
+		$args = isset( $_GET ) ? wp_unslash( $_GET ) : array();
+		unset( $args['page'] );
+		$args = array_map( 'sanitize_text_field', (array) $args );
+		$args['page'] = self::EDITOR_SLUG;
+
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
+		exit;
 	}
 
 	/**
@@ -2971,7 +3010,7 @@ final class WP_Remote_OG_Admin {
 	private static function nav_items() {
 		return array(
 			array(
-				'slug'  => 'wp-remote-og',
+				'slug'  => self::DASHBOARD_SLUG,
 				'label' => __( 'Dashboard', 'wp-remote-og-plugins' ),
 			),
 			array(
@@ -3258,7 +3297,7 @@ final class WP_Remote_OG_Admin {
 		$actions = '<a class="button button-primary" href="' . esc_url( $editor_url ) . '">' . esc_html__( 'Edit Template', 'wp-remote-og-plugins' ) . '</a>';
 		$actions .= '<a class="button" href="' . esc_url( $templates_url ) . '">' . esc_html__( 'Browse Templates', 'wp-remote-og-plugins' ) . '</a>';
 
-		self::page_open( 'wp-remote-og', __( 'Dashboard', 'wp-remote-og-plugins' ), __( 'Your social preview image generation at a glance.', 'wp-remote-og-plugins' ), $actions );
+		self::page_open( self::DASHBOARD_SLUG, __( 'Dashboard', 'wp-remote-og-plugins' ), __( 'Your social preview image generation at a glance.', 'wp-remote-og-plugins' ), $actions );
 
 		if ( $dirty ) {
 			echo '<div class="wpog-notice is-info"><p><strong>' . esc_html__( 'Your template changed.', 'wp-remote-og-plugins' ) . '</strong> ' . esc_html__( 'Regenerate existing images so they match the new design.', 'wp-remote-og-plugins' ) . ' <a class="button button-small" href="' . esc_url( $tools_url . '&wp_remote_og_prompt=1' ) . '">' . esc_html__( 'Regenerate now', 'wp-remote-og-plugins' ) . '</a></p></div>';

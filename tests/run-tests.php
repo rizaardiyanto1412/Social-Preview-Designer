@@ -99,8 +99,10 @@ wp_remote_og_assert( array_key_exists( 'upload_writable', $diagnostics ), 'Diagn
 
 do_action( 'admin_menu' );
 global $submenu;
-$registered_pages = isset( $submenu['wp-remote-og'] ) ? wp_list_pluck( $submenu['wp-remote-og'], 2 ) : array();
-wp_remote_og_assert( in_array( 'wp-remote-og', $registered_pages, true ), 'Dashboard admin page is registered on the top-level slug.' );
+$registered_pages = isset( $submenu['wp-remote-og-dashboard'] ) ? wp_list_pluck( $submenu['wp-remote-og-dashboard'], 2 ) : array();
+wp_remote_og_assert( in_array( 'wp-remote-og-dashboard', $registered_pages, true ), 'Dashboard admin page is registered on its distinct top-level slug.' );
+wp_remote_og_assert( ! in_array( 'wp-remote-og', $registered_pages, true ), 'The legacy bare "wp-remote-og" slug is no longer a live page (aliased to the editor).' );
+wp_remote_og_assert( 'wp-remote-og-editor' === WP_Remote_OG_Admin::EDITOR_SLUG && 'wp-remote-og' === WP_Remote_OG_Admin::LEGACY_EDITOR_SLUG, 'Legacy editor bookmarks redirect from the old slug to the editor slug.' );
 wp_remote_og_assert( in_array( 'wp-remote-og-editor', $registered_pages, true ), 'Template Editor admin page is registered on the new slug.' );
 wp_remote_og_assert( in_array( 'wp-remote-og-templates', $registered_pages, true ), 'Templates gallery admin page is registered.' );
 wp_remote_og_assert( in_array( 'wp-remote-og-fields', $registered_pages, true ), 'Dynamic Fields admin page is registered.' );
