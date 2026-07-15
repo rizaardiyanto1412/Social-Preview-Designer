@@ -366,11 +366,10 @@
 		if (!frame.length) {
 			return 1;
 		}
-		var available = frame.width();
-		if (!available || available <= 0) {
-			return 1;
-		}
-		return Math.min(1, available / 1200);
+		// Fit the 1200x630 artboard to BOTH the frame's inner width and height so
+		// the canvas never overflows its zone vertically (tall panels / short
+		// viewports) or horizontally, capped at 1:1.
+		return ES.fitScale(1200, 630, frame.width(), frame.height(), 1);
 	}
 
 	function applyCanvasScale() {

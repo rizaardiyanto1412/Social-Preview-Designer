@@ -39,6 +39,12 @@
 	max-width: 1320px;
 }
 
+/* The editor workspace fills the full wp-admin content width (the 1320px cap is
+   for the reading-width non-editor screens only). */
+.wp-remote-og-editor-page.wp-remote-og-app {
+	max-width: none;
+}
+
 .wp-remote-og-app * {
 	box-sizing: border-box;
 }
@@ -1430,6 +1436,34 @@
 	grid-template-columns: 240px minmax(0, 1fr) 320px;
 }
 
+/* Let the workspace fill the available viewport height so the canvas has real
+   vertical room to scale into. This is a min-height (content taller than the
+   viewport still flows), and the reserved offset is a soft estimate of the WP
+   admin bar + plugin shell + editor bar; being slightly off only trades a hair
+   of scroll, never a broken layout. Fullscreen mode overrides this to inset:0. */
+@media (min-width: 1101px) {
+	.wp-remote-og-editor-page .wp-remote-og-editor {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
+	.wp-remote-og-editor-page .wpog-workspace {
+		flex: 1 1 auto;
+		min-height: 520px;
+		min-height: clamp(520px, calc(100dvh - 240px), 1400px);
+	}
+
+	/* Side panels scroll independently; the canvas stays visible. */
+	.wp-remote-og-editor-page .wpog-panel-left,
+	.wp-remote-og-editor-page .wpog-panel-right {
+		max-height: 100%;
+		overflow-y: auto;
+		position: sticky;
+		top: 0;
+	}
+}
+
 .wpog-panel {
 	background: var(--wpog-panel);
 	border: 1px solid var(--wpog-border);
@@ -1516,8 +1550,11 @@
 }
 
 .wpog-canvas-zone .wp-remote-og-canvas-frame {
+	align-items: center;
 	display: flex;
+	flex: 1 1 auto;
 	justify-content: center;
+	min-height: 0;
 	overflow: auto;
 	padding: 0;
 }

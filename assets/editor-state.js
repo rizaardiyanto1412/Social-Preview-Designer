@@ -133,6 +133,37 @@
 	}
 
 	/**
+	 * Fit a fixed-size artboard inside an available frame, honoring BOTH the
+	 * available width and height, capped at `maxScale` (never upscale past 1:1).
+	 *
+	 * A non-positive available dimension is treated as "unknown" and ignored, so
+	 * before layout has settled (e.g. a collapsed/hidden frame) the function
+	 * degrades to the width-only / max-scale behavior rather than collapsing to 0.
+	 * Returns a strictly positive scale.
+	 *
+	 * @param {number} contentWidth   artboard width  (e.g. 1200)
+	 * @param {number} contentHeight  artboard height (e.g. 630)
+	 * @param {number} availableWidth  frame inner width in screen px
+	 * @param {number} availableHeight frame inner height in screen px
+	 * @param {number} [maxScale=1]
+	 * @returns {number}
+	 */
+	function fitScale(contentWidth, contentHeight, availableWidth, availableHeight, maxScale) {
+		maxScale = maxScale && maxScale > 0 ? maxScale : 1;
+		var scale = maxScale;
+		if (availableWidth > 0 && contentWidth > 0) {
+			scale = Math.min(scale, availableWidth / contentWidth);
+		}
+		if (availableHeight > 0 && contentHeight > 0) {
+			scale = Math.min(scale, availableHeight / contentHeight);
+		}
+		if (!(scale > 0)) {
+			scale = maxScale;
+		}
+		return scale;
+	}
+
+	/**
 	 * dirty === current template differs from the last persisted snapshot.
 	 */
 	function isDirty(current, saved) {
@@ -515,6 +546,7 @@
 		typeLabel: typeLabel,
 		deriveLayerName: deriveLayerName,
 		reconcileLabelForTypeChange: reconcileLabelForTypeChange,
+		fitScale: fitScale,
 		clone: clone,
 		equals: equals,
 		clamp: clamp,
