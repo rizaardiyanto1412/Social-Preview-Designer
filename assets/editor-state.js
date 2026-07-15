@@ -210,7 +210,9 @@
 		if (!trimmed) {
 			return { valid: false, reason: 'empty', value: '' };
 		}
-		if (trimmed.length > maxLen) {
+		// Count Unicode code points, not UTF-16 units, so a multibyte name is
+		// measured the same way the PHP guard (mb_strlen) measures it.
+		if (Array.from(trimmed).length > maxLen) {
 			return { valid: false, reason: 'too_long', value: trimmed };
 		}
 		return { valid: true, reason: '', value: trimmed };
@@ -342,6 +344,58 @@
 	}
 
 	/**
+	 * Production glue for overflow-menu placement, extracted so the exact
+	 * measure->compute->apply mapping admin.js uses is Node-testable.
+	 *
+	 * Given the measured trigger rect, the menu size, the viewport, and the admin
+	 * content-area boundary (e.g. #wpcontent's getBoundingClientRect, which sits to
+	 * the right of the WP sidebar), it resolves the final placement. When no usable
+	 * boundary is supplied it falls back to the full viewport. The result is the
+	 * same shape computeMenuPosition returns, so admin.js can apply it directly.
+	 *
+	 * opts:
+	 *  - triggerRect: measured trigger rect (viewport coords)
+	 *  - menuSize:    { width, height }
+	 *  - viewport:    { width, height }
+	 *  - boundary?:   { left, top, right, bottom } content area to stay inside
+	 *  - gap?, margin?: forwarded to computeMenuPosition
+	 */
+	function resolveMenuPlacement(opts) {
+		opts = opts || {};
+		var viewport = opts.viewport || {};
+		var vpW = viewport.width || 0;
+		var vpH = viewport.height || 0;
+
+		// Normalize the boundary: a valid boundary must describe a positive area
+		// inside the viewport; otherwise fall back to the whole viewport so the
+		// menu is never constrained to a degenerate/empty rect.
+		var boundary = opts.boundary;
+		var usable = boundary &&
+			typeof boundary.left === 'number' &&
+			typeof boundary.right === 'number' &&
+			typeof boundary.top === 'number' &&
+			typeof boundary.bottom === 'number' &&
+			boundary.right > boundary.left &&
+			boundary.bottom > boundary.top;
+
+		var resolvedBoundary = usable ? {
+			left: Math.max(0, boundary.left),
+			top: Math.max(0, boundary.top),
+			right: Math.min(vpW || boundary.right, boundary.right),
+			bottom: Math.min(vpH || boundary.bottom, boundary.bottom)
+		} : { left: 0, top: 0, right: vpW, bottom: vpH };
+
+		return computeMenuPosition({
+			triggerRect: opts.triggerRect,
+			menuSize: opts.menuSize,
+			viewport: viewport,
+			boundaryRect: resolvedBoundary,
+			gap: opts.gap,
+			margin: opts.margin
+		});
+	}
+
+	/**
 	 * Focus-trap wrap target for a Tab / Shift+Tab press inside a modal.
 	 *
 	 * Given the number of focusable elements, the index of the currently
@@ -378,6 +432,7 @@
 		validateTemplateName: validateTemplateName,
 		generateDefaultName: generateDefaultName,
 		computeMenuPosition: computeMenuPosition,
+		resolveMenuPlacement: resolveMenuPlacement,
 		focusTrapTarget: focusTrapTarget
 	};
 });

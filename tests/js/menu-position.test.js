@@ -100,3 +100,38 @@ test('a boundary rect constrains placement to the admin content area', () => {
 	});
 	assert.ok(pos.left >= 160 + 8, 'stays right of the sidebar boundary');
 });
+
+test('resolveMenuPlacement (production glue) keeps the menu right of the sidebar boundary', () => {
+	// This exercises the exact measure->compute->apply mapping admin.js calls:
+	// a trigger sitting just inside the content column, with the WP sidebar as the
+	// left boundary. Without the boundary the right-aligned menu would clip under
+	// the sidebar; the glue must constrain it.
+	const boundary = { left: 160, top: 32, right: 1280, bottom: 800 };
+	const withBoundary = ES.resolveMenuPlacement({
+		triggerRect: { left: 168, right: 200, top: 120, bottom: 152 },
+		menuSize: MENU,
+		viewport: VIEWPORT,
+		boundary: boundary
+	});
+	assert.ok(withBoundary.left >= boundary.left + 8, 'never crosses the boundary left edge (WP sidebar)');
+	assert.ok(withBoundary.left + MENU.width <= boundary.right - 8, 'never spills past the boundary right edge');
+});
+
+test('resolveMenuPlacement falls back to the viewport for a missing/degenerate boundary', () => {
+	const base = {
+		triggerRect: { left: 600, right: 640, top: 300, bottom: 330 },
+		menuSize: MENU,
+		viewport: VIEWPORT
+	};
+	const noBoundary = ES.resolveMenuPlacement(base);
+	const viewportBoundary = ES.computeMenuPosition(Object.assign({}, base, {
+		boundaryRect: { left: 0, top: 0, right: VIEWPORT.width, bottom: VIEWPORT.height }
+	}));
+	assert.deepStrictEqual(noBoundary, viewportBoundary, 'missing boundary behaves like a full-viewport boundary');
+
+	// A degenerate (zero-area) boundary must not trap the menu in an empty rect.
+	const degenerate = ES.resolveMenuPlacement(Object.assign({}, base, {
+		boundary: { left: 500, top: 500, right: 500, bottom: 500 }
+	}));
+	assert.deepStrictEqual(degenerate, viewportBoundary, 'degenerate boundary falls back to the viewport');
+});

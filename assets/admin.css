@@ -1105,6 +1105,24 @@
 	padding: 16px;
 }
 
+.wp-remote-og-custom-thumb {
+	align-items: center;
+	min-height: 120px;
+}
+
+.wp-remote-og-custom-thumb-initial {
+	align-items: center;
+	background: var(--wpog-border);
+	border-radius: 50%;
+	color: #475569;
+	display: flex;
+	font-size: 32px;
+	font-weight: 600;
+	height: 72px;
+	justify-content: center;
+	width: 72px;
+}
+
 .wp-remote-og-preview-canvas {
 	background: #f8fafc;
 	border-radius: 4px;

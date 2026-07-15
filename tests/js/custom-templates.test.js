@@ -35,6 +35,18 @@ test('validateTemplateName enforces non-empty and max length', () => {
 	assert.strictEqual(ES.validateTemplateName('x'.repeat(100)).valid, true);
 });
 
+test('validateTemplateName measures multibyte names by code point, not UTF-16 units', () => {
+	// 100 accented chars is exactly the boundary and must be accepted; 101 rejected.
+	assert.strictEqual(ES.validateTemplateName('ü'.repeat(100)).valid, true, '100 code points at the boundary');
+	assert.strictEqual(ES.validateTemplateName('ü'.repeat(101)).reason, 'too_long', '101 code points rejected');
+	// CJK behaves the same (each is one code point).
+	assert.strictEqual(ES.validateTemplateName('社'.repeat(100)).valid, true);
+	assert.strictEqual(ES.validateTemplateName('社'.repeat(101)).reason, 'too_long');
+	// An astral emoji is a single code point even though String.length counts it
+	// as 2 UTF-16 units: 100 of them must still be accepted.
+	assert.strictEqual(ES.validateTemplateName('😀'.repeat(100)).valid, true, 'astral chars counted once');
+});
+
 test('generateDefaultName is unique (case-insensitive) against existing names', () => {
 	assert.strictEqual(ES.generateDefaultName([], 'My Template'), 'My Template');
 	assert.strictEqual(ES.generateDefaultName(['My Template'], 'My Template'), 'My Template 2');

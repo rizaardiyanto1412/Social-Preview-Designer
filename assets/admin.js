@@ -1594,6 +1594,23 @@
 	// can reposition it on scroll/resize. Cleared when all menus close.
 	var openOverflow = null;
 
+	// The admin content-area rectangle the overflow menus must stay inside. WP's
+	// collapsible sidebar occupies the left edge; #wpcontent is the content column
+	// to its right, so its getBoundingClientRect gives the true left boundary.
+	// Falls back to the editor app container and finally the viewport.
+	function adminContentBoundary() {
+		var node = document.getElementById('wpcontent') ||
+			document.querySelector('.wp-remote-og-app') ||
+			document.getElementById('wpbody-content');
+		if (node && node.getBoundingClientRect) {
+			var rect = node.getBoundingClientRect();
+			if (rect.width > 0 && rect.height > 0) {
+				return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+			}
+		}
+		return null;
+	}
+
 	// Collision-aware placement: measure the trigger and menu in viewport
 	// coordinates and delegate the flip/clamp math to the pure ES helper, then
 	// pin the menu with position:fixed so it never clips under the WP admin
@@ -1611,10 +1628,11 @@
 
 		var triggerRect = toggle.get(0).getBoundingClientRect();
 		var menuRect = el.getBoundingClientRect();
-		var pos = ES.computeMenuPosition({
+		var pos = ES.resolveMenuPlacement({
 			triggerRect: triggerRect,
 			menuSize: { width: menuRect.width, height: menuRect.height },
-			viewport: { width: window.innerWidth, height: window.innerHeight }
+			viewport: { width: window.innerWidth, height: window.innerHeight },
+			boundary: adminContentBoundary()
 		});
 
 		el.style.left = pos.left + 'px';
@@ -2356,8 +2374,11 @@
 					role: 'listitem',
 					'aria-label': rec.name
 				});
-				var thumb = $('<div/>', { 'class': 'wp-remote-og-preset-thumb' });
-				thumb.append(buildPresetPreview(rec.template, 300));
+				// Boot/mutation payloads carry metadata only (no template body), so
+				// the card shows a lightweight placeholder; the full design is fetched
+				// on demand when the user previews or applies it.
+				var thumb = $('<div/>', { 'class': 'wp-remote-og-preset-thumb wp-remote-og-custom-thumb' });
+				$('<span/>', { 'class': 'wp-remote-og-custom-thumb-initial', text: (rec.name || '?').trim().charAt(0).toUpperCase() || '?' }).appendTo(thumb);
 				card.append(thumb);
 				var body = $('<div/>', { 'class': 'wp-remote-og-preset-body' });
 				$('<h3/>', { 'class': 'wp-remote-og-preset-name', text: rec.name }).appendTo(body);
@@ -2393,6 +2414,25 @@
 			});
 		}
 
+		// Fetch a single custom-template body on demand (boot data is metadata-only).
+		function fetchCustomBody(id, onOk) {
+			customStatusMsg(strings.generating || 'Working…', 'busy');
+			$.post(WPRemoteOG.ajaxUrl, {
+				action: 'wp_remote_og_get_custom_template',
+				nonce: WPRemoteOG.nonce,
+				id: id
+			}).done(function (response) {
+				if (response && response.success && response.data && response.data.record) {
+					customStatusMsg('', '');
+					onOk(response.data.record);
+				} else {
+					customStatusMsg(response && response.data && response.data.message ? response.data.message : (strings.applyFailed || 'Something went wrong.'), 'error');
+				}
+			}).fail(function () {
+				customStatusMsg(strings.applyFailed || 'Something went wrong.', 'error');
+			});
+		}
+
 		function applyCustomTemplate(id, button) {
 			if (!window.confirm(strings.applyConfirm || 'Apply this template?')) {
 				return;
@@ -2418,7 +2458,9 @@
 			}
 			var action = $(this).data('custom-action');
 			if ('preview' === action) {
-				openModal({ name: rec.name, description: '', template: rec.template, customId: rec.id });
+				fetchCustomBody(id, function (full) {
+					openModal({ name: full.name, description: '', template: full.template, customId: full.id });
+				});
 			} else if ('apply' === action) {
 				applyCustomTemplate(id, $(this));
 			} else if ('rename' === action) {

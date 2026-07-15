@@ -343,6 +343,162 @@ wp_remote_og_assert( count( WP_Remote_OG_Plugin::get_custom_templates() ) === $l
 $over_limit = WP_Remote_OG_Admin::create_custom_template( 'One Too Many', $custom_template_body );
 wp_remote_og_assert( is_wp_error( $over_limit ), 'create_custom_template rejects creation beyond the maximum count.' );
 
+// --- Finding 2: metadata-only payload shape + on-demand body fetch ----------
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+WP_Remote_OG_Plugin::set_active_custom_id( '' );
+$shape_created = WP_Remote_OG_Admin::create_custom_template( 'Shape One', $custom_template_body );
+$shape_list    = $shape_created['customTemplates'];
+$shape_first   = $shape_list[0];
+wp_remote_og_assert( ! array_key_exists( 'template', $shape_first ), 'Mutation response list items carry NO template body.' );
+wp_remote_og_assert( array_key_exists( 'id', $shape_first ) && array_key_exists( 'name', $shape_first ) && array_key_exists( 'schema_version', $shape_first ) && array_key_exists( 'created_at', $shape_first ) && array_key_exists( 'updated_at', $shape_first ), 'Mutation response list items carry id/name/schema_version/timestamps metadata.' );
+
+$meta_list   = WP_Remote_OG_Admin::custom_templates_metadata_list();
+$meta_nobody = true;
+foreach ( $meta_list as $meta_item ) {
+	if ( array_key_exists( 'template', $meta_item ) ) {
+		$meta_nobody = false;
+	}
+}
+wp_remote_og_assert( $meta_nobody, 'custom_templates_metadata_list() omits template bodies for every item.' );
+
+$got_body = WP_Remote_OG_Admin::get_custom_template( $shape_created['id'] );
+wp_remote_og_assert( is_array( $got_body ) && isset( $got_body['record']['template']['layers'] ), 'get_custom_template returns a single record INCLUDING its body.' );
+wp_remote_og_assert( is_wp_error( WP_Remote_OG_Admin::get_custom_template( 'custom-nope' ) ), 'get_custom_template errors on an unknown id.' );
+
+// Boot data and every mutation response must use the metadata list, never the
+// full-body list.
+$plugin_src_payload = file_get_contents( dirname( __DIR__ ) . '/wp-remote-og-plugins.php' );
+wp_remote_og_assert( false !== strpos( $plugin_src_payload, "'customTemplates' => self::custom_templates_metadata_list()" ), 'Boot/response payloads localize the metadata-only custom-template list.' );
+wp_remote_og_assert( false === strpos( $plugin_src_payload, "'customTemplates' => self::custom_templates_list()" ), 'No boot/response payload localizes full custom-template bodies.' );
+
+// --- Finding 2: TOTAL store byte guard --------------------------------------
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+WP_Remote_OG_Plugin::set_active_custom_id( '' );
+$big_body = $custom_template_body;
+$big_body['layers'][0]['content'] = str_repeat( 'B', 90000 ); // ~90 KB, under the per-record 100 KB guard.
+$store_err     = null;
+$store_created = 0;
+for ( $i = 0; $i < WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES; $i++ ) {
+	$store_result = WP_Remote_OG_Admin::create_custom_template( 'Big ' . $i, $big_body );
+	if ( is_wp_error( $store_result ) ) {
+		$store_err = $store_result;
+		break;
+	}
+	$store_created++;
+}
+wp_remote_og_assert( is_wp_error( $store_err ) && 'wp_remote_og_store_full' === $store_err->get_error_code(), 'Total store byte guard rejects writes past MAX_CUSTOM_STORE_BYTES.' );
+wp_remote_og_assert( $store_created > 0 && $store_created < WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES, 'Total store guard trips before the count limit when bodies are large.' );
+wp_remote_og_assert( strlen( (string) wp_json_encode( array_values( WP_Remote_OG_Plugin::get_custom_templates() ) ) ) <= WP_Remote_OG_Plugin::MAX_CUSTOM_STORE_BYTES, 'The persisted store never exceeds MAX_CUSTOM_STORE_BYTES.' );
+
+// --- Finding 1: transactional save leaves NO state change on any failure -----
+$assert_txn_unchanged = function ( $before, $label ) {
+	wp_remote_og_assert(
+		wp_json_encode( WP_Remote_OG_Plugin::get_template() ) === $before['active'] &&
+		get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_VERSION ) === $before['version'] &&
+		(bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ) === $before['dirty'] &&
+		wp_json_encode( WP_Remote_OG_Plugin::get_custom_templates() ) === $before['store'] &&
+		WP_Remote_OG_Plugin::get_active_custom_id() === $before['active_id'],
+		$label
+	);
+};
+$txn_snapshot = function () {
+	return array(
+		'active'    => wp_json_encode( WP_Remote_OG_Plugin::get_template() ),
+		'version'   => get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_VERSION ),
+		'dirty'     => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
+		'store'     => wp_json_encode( WP_Remote_OG_Plugin::get_custom_templates() ),
+		'active_id' => WP_Remote_OG_Plugin::get_active_custom_id(),
+	);
+};
+
+// Establish a known linked active design.
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+WP_Remote_OG_Plugin::set_active_custom_id( '' );
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+$txn_base = WP_Remote_OG_Admin::create_custom_template( 'Txn Base', $custom_template_body );
+WP_Remote_OG_Admin::apply_custom_template( $txn_base['id'] );
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ); // Clear so a spurious dirty flag is detectable.
+
+$txn_edited = $custom_template_body;
+$txn_edited['layers'][0]['content'] = 'MUST NOT PERSIST ON FAILURE';
+
+// Failure 1: invalid (too-long) name on a save-as.
+$before_name = $txn_snapshot();
+$fail_name   = WP_Remote_OG_Admin::save_active_template( $txn_edited, '', str_repeat( 'x', 101 ) );
+wp_remote_og_assert( is_wp_error( $fail_name ), 'save_active_template rejects an invalid (too-long) save-as name.' );
+$assert_txn_unchanged( $before_name, 'Invalid-name save failure persists NO state change (active template/version/dirty/store/link).' );
+
+// Failure 2: per-record size-limit on a save-as.
+$txn_huge = $custom_template_body;
+$txn_huge['layers'][0]['content'] = str_repeat( 'A', WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_BYTES + 1000 );
+$before_size = $txn_snapshot();
+$fail_size   = WP_Remote_OG_Admin::save_active_template( $txn_huge, '', 'Huge Save' );
+wp_remote_og_assert( is_wp_error( $fail_size ), 'save_active_template rejects an oversize save-as record.' );
+$assert_txn_unchanged( $before_size, 'Size-limit save failure persists NO state change (active template never becomes the oversize design).' );
+
+// Failure 3: count-limit on a save-as. Fill to the maximum first.
+while ( count( WP_Remote_OG_Plugin::get_custom_templates() ) < WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES ) {
+	WP_Remote_OG_Admin::create_custom_template( 'TxnFill ' . count( WP_Remote_OG_Plugin::get_custom_templates() ), $custom_template_body );
+}
+WP_Remote_OG_Admin::apply_custom_template( $txn_base['id'] ); // Re-link the base as active.
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY );
+$before_count = $txn_snapshot();
+$fail_count   = WP_Remote_OG_Admin::save_active_template( $txn_edited, '', 'Over The Count Limit' );
+wp_remote_og_assert( is_wp_error( $fail_count ) && 'wp_remote_og_limit_reached' === $fail_count->get_error_code(), 'save_active_template rejects a save-as beyond the count limit.' );
+$assert_txn_unchanged( $before_count, 'Count-limit save failure persists NO state change.' );
+
+// Sanity: a valid linked save through the transactional path still commits.
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+WP_Remote_OG_Plugin::set_active_custom_id( '' );
+$txn_ok_src = WP_Remote_OG_Admin::create_custom_template( 'Txn OK', $custom_template_body );
+WP_Remote_OG_Admin::apply_custom_template( $txn_ok_src['id'] );
+$txn_ok_body = $custom_template_body;
+$txn_ok_body['layers'][0]['content'] = 'Committed via transactional save';
+$txn_ok = WP_Remote_OG_Admin::save_active_template( $txn_ok_body, $txn_ok_src['id'], '' );
+wp_remote_og_assert( is_array( $txn_ok ) && $txn_ok['customId'] === $txn_ok_src['id'], 'A valid linked save still commits through the transactional path.' );
+$txn_ok_store = WP_Remote_OG_Plugin::get_custom_templates();
+wp_remote_og_assert( 'Committed via transactional save' === $txn_ok_store[ $txn_ok_src['id'] ]['template']['layers'][0]['content'], 'A valid transactional save writes the edit into both the active template and the linked record.' );
+
+// --- Finding 4: Unicode-safe name limits ------------------------------------
+wp_remote_og_assert( 100 === WP_Remote_OG_Plugin::text_length( str_repeat( 'ü', 100 ) ), 'text_length counts multibyte accented characters as single code points.' );
+wp_remote_og_assert( 100 === WP_Remote_OG_Plugin::text_length( str_repeat( '社', 100 ) ), 'text_length counts CJK characters as single code points.' );
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+$intl_ok  = WP_Remote_OG_Admin::create_custom_template( str_repeat( 'ü', 100 ), $custom_template_body );
+wp_remote_og_assert( is_array( $intl_ok ), 'A 100 code-point multibyte name is accepted at the boundary.' );
+$intl_bad = WP_Remote_OG_Admin::create_custom_template( str_repeat( 'ü', 101 ), $custom_template_body );
+wp_remote_og_assert( is_wp_error( $intl_bad ), 'A 101 code-point multibyte name is rejected.' );
+
+// Duplicate " copy" suffix truncation must never split a multibyte character.
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+$mb_src  = WP_Remote_OG_Admin::create_custom_template( str_repeat( 'ü', 99 ), $custom_template_body ); // 99 + " copy" = 104 code points.
+$mb_dup  = WP_Remote_OG_Admin::duplicate_custom_template( $mb_src['id'] );
+$dup_name = $mb_dup['record']['name'];
+wp_remote_og_assert( 100 === WP_Remote_OG_Plugin::text_length( $dup_name ), 'Duplicate name truncates to exactly 100 code points.' );
+wp_remote_og_assert( '' !== wp_check_invalid_utf8( $dup_name ) && $dup_name === wp_check_invalid_utf8( $dup_name ), 'Duplicate truncation never splits a multibyte character (result stays valid UTF-8).' );
+
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+WP_Remote_OG_Plugin::set_active_custom_id( '' );
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+
+// --- Finding 3: exact screen-hook allowlist (no substring collisions) --------
+$screen_hooks = WP_Remote_OG_Admin::plugin_screen_hooks();
+wp_remote_og_assert( ! empty( $screen_hooks ), 'Screen-hook allowlist is populated after admin_menu registration.' );
+foreach ( array( 'wp-remote-og-dashboard', 'wp-remote-og-editor', 'wp-remote-og-templates', 'wp-remote-og-fields', 'wp-remote-og-fonts', 'wp-remote-og-tools', 'wp-remote-og-diagnostics', 'wp-remote-og' ) as $real_slug ) {
+	wp_remote_og_assert( WP_Remote_OG_Admin::is_plugin_hook( $real_slug ), 'Registered plugin slug is in the allowlist: ' . $real_slug );
+}
+$all_registered_match = true;
+foreach ( array_keys( $screen_hooks ) as $registered_hook ) {
+	if ( ! WP_Remote_OG_Admin::is_plugin_hook( $registered_hook ) ) {
+		$all_registered_match = false;
+	}
+}
+wp_remote_og_assert( $all_registered_match, 'Every registered hook suffix / screen id matches the allowlist exactly.' );
+wp_remote_og_assert( ! WP_Remote_OG_Admin::is_plugin_hook( 'toplevel_page_my-wp-remote-og-helper' ), 'A colliding foreign hook containing the fragment does NOT match.' );
+wp_remote_og_assert( ! WP_Remote_OG_Admin::is_plugin_hook( 'my-wp-remote-og-helper' ), 'A colliding foreign bare slug containing the fragment does NOT match.' );
+$GLOBALS['hook_suffix'] = 'toplevel_page_my-wp-remote-og-helper';
+set_current_screen( 'my-wp-remote-og-helper' );
+wp_remote_og_assert( ! WP_Remote_OG_Admin::is_plugin_screen(), 'is_plugin_screen() rejects a colliding foreign screen with the shared fragment.' );
+
 // Templates page renders both sections; uninstall removes the new options.
 ob_start();
 WP_Remote_OG_Admin::render_templates_page();
