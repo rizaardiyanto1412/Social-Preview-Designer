@@ -3835,7 +3835,7 @@ final class WP_Remote_OG_Admin {
 							</form>
 						</div>
 					</div>
-					<button type="button" class="wpog-icon-btn wpog-distraction-toggle" id="wp-remote-og-distraction-free" aria-pressed="false" data-on-label="<?php esc_attr_e( 'Exit fullscreen', 'wp-remote-og-plugins' ); ?>" data-off-label="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>" title="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'expand' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+					<button type="button" class="wpog-icon-btn wpog-distraction-toggle" id="wp-remote-og-distraction-free" aria-pressed="false" data-on-label="<?php esc_attr_e( 'Exit fullscreen', 'wp-remote-og-plugins' ); ?>" data-off-label="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>" title="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>"><span class="wpog-icon-expand" aria-hidden="true"><?php echo self::icon( 'expand' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span><span class="wpog-icon-compress" aria-hidden="true"><?php echo self::icon( 'compress' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span></button>
 					<button type="button" class="button button-primary wpog-save-btn" id="wp-remote-og-save-template"><?php echo self::icon( 'save' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span><?php esc_html_e( 'Save', 'wp-remote-og-plugins' ); ?></span></button>
 				</div>
 			</div>

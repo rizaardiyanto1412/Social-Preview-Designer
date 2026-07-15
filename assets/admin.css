@@ -1454,13 +1454,18 @@
 		min-height: clamp(520px, calc(100dvh - 240px), 1400px);
 	}
 
-	/* Side panels scroll independently; the canvas stays visible. */
+	/* Side panels scroll independently; the canvas stays visible. Stick below the
+	   fixed WP admin bar (WP core exposes its height as a custom property; keep a
+	   px fallback) and bound the height to the viewport so the internal scroll
+	   actually engages — max-height:100% would resolve against the stretched grid
+	   track and never constrain. A vh line precedes the dvh line for fallback. */
 	.wp-remote-og-editor-page .wpog-panel-left,
 	.wp-remote-og-editor-page .wpog-panel-right {
-		max-height: 100%;
+		max-height: calc(100vh - var(--wp-admin--admin-bar--height, 32px) - 24px);
+		max-height: calc(100dvh - var(--wp-admin--admin-bar--height, 32px) - 24px);
 		overflow-y: auto;
 		position: sticky;
-		top: 0;
+		top: calc(var(--wp-admin--admin-bar--height, 32px) + 12px);
 	}
 }
 
@@ -1691,10 +1696,36 @@ body.wpog-distraction-free .wp-remote-og-editor-page .wpog-workspace {
 	min-height: clamp(360px, calc(100dvh - 108px), 100dvh);
 }
 
+/* The admin bar is hidden in distraction-free mode, so panels stick to the top
+   of the fixed editor page and use the full viewport height (no bar offset). */
+body.wpog-distraction-free .wp-remote-og-editor-page .wpog-panel-left,
+body.wpog-distraction-free .wp-remote-og-editor-page .wpog-panel-right {
+	max-height: calc(100vh - 32px);
+	max-height: calc(100dvh - 32px);
+	top: 0;
+}
+
 .wpog-distraction-toggle[aria-pressed="true"] {
 	background: var(--wpog-accent, #4f46e5);
 	border-color: var(--wpog-accent, #4f46e5);
 	color: #fff;
+}
+
+/* The button carries both icons; show the one matching the current state so the
+   visual affordance flips (expand -> compress) alongside aria-pressed. */
+.wpog-distraction-toggle .wpog-icon-expand,
+.wpog-distraction-toggle .wpog-icon-compress {
+	align-items: center;
+	display: inline-flex;
+}
+
+.wpog-distraction-toggle .wpog-icon-compress,
+.wpog-distraction-toggle[aria-pressed="true"] .wpog-icon-expand {
+	display: none;
+}
+
+.wpog-distraction-toggle[aria-pressed="true"] .wpog-icon-compress {
+	display: inline-flex;
 }
 
 /* My Templates (custom, reusable) ----------------------------------------- */

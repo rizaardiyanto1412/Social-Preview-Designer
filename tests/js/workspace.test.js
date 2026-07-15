@@ -59,4 +59,27 @@ test('editor CSS keeps the 3-region grid and full-width editor page', () => {
 		/\.wpog-canvas-zone \.wp-remote-og-canvas-frame\s*\{[^}]*flex:\s*1 1 auto/.test(css),
 		'canvas frame should flex to fill available height'
 	);
+	// Sticky side panels clear the fixed WP admin bar and cap height to the
+	// viewport (not the stretched grid track) so the internal scroll engages.
+	assert.ok(
+		/top:\s*calc\(var\(--wp-admin--admin-bar--height, 32px\) \+ 12px\)/.test(css),
+		'side panels should stick below the fixed admin bar'
+	);
+	assert.ok(
+		/max-height:\s*calc\(100dvh - var\(--wp-admin--admin-bar--height, 32px\) - 24px\)/.test(css),
+		'side panels should cap height to the viewport minus the admin bar'
+	);
+});
+
+test('distraction-free toggle carries both icons and flips them by aria-pressed', () => {
+	const css = fs.readFileSync(path.join(__dirname, '../../assets/admin.css'), 'utf8');
+	const php = fs.readFileSync(path.join(__dirname, '../../wp-remote-og-plugins.php'), 'utf8');
+	// Both icon wrappers are rendered inside the button.
+	assert.ok(/wpog-icon-expand/.test(php) && /wpog-icon-compress/.test(php),
+		'button markup should include both icon spans');
+	// CSS hides the compress icon by default and the expand icon when pressed.
+	assert.ok(
+		/\.wpog-distraction-toggle \.wpog-icon-compress,\s*\.wpog-distraction-toggle\[aria-pressed="true"\] \.wpog-icon-expand\s*\{[^}]*display:\s*none/.test(css),
+		'CSS should flip the visible icon by aria-pressed'
+	);
 });
