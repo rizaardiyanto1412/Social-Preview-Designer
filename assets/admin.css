@@ -36,12 +36,14 @@
 .wp-remote-og-app {
 	font-family: var(--wpog-font);
 	color: var(--wpog-text);
-	max-width: 1320px;
 }
 
-/* The editor workspace fills the full wp-admin content width (the 1320px cap is
-   for the reading-width non-editor screens only). */
-.wp-remote-og-editor-page.wp-remote-og-app {
+/* Shared full-width shell for EVERY plugin admin screen: the shell, page header,
+   nav and cards/grids span the whole wp-admin content column. Individual page
+   CONTENT keeps its own readable caps (paragraphs, form columns) via inner
+   max-widths; the wrapper itself is never capped, so there is no dead
+   right-hand whitespace at any admin sidebar state. */
+.wpog-fullwidth {
 	max-width: none;
 }
 

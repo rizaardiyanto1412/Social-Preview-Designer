@@ -49,10 +49,11 @@ test('editor CSS keeps the 3-region grid and full-width editor page', () => {
 		/grid-template-columns:\s*240px minmax\(0, 1fr\) 320px/.test(css),
 		'workspace should declare the 240 / 1fr / 320 three-column grid'
 	);
-	// Editor page removes the reading-width cap.
+	// The shared full-width shell removes the reading-width cap (used by the
+	// editor page and every other plugin screen).
 	assert.ok(
-		/\.wp-remote-og-editor-page\.wp-remote-og-app\s*\{[^}]*max-width:\s*none/.test(css),
-		'editor page should drop the max-width cap'
+		/\.wpog-fullwidth\s*\{[^}]*max-width:\s*none/.test(css),
+		'shared shell should drop the max-width cap'
 	);
 	// Canvas frame flexes to fill vertical space.
 	assert.ok(

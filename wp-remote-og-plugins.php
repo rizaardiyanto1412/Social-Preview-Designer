@@ -3401,7 +3401,7 @@ final class WP_Remote_OG_Admin {
 	 * @param string $actions  Optional pre-escaped HTML for the primary action area.
 	 */
 	private static function page_open( $active, $title, $subtitle = '', $actions = '' ) {
-		echo '<div class="wrap wp-remote-og-app wp-remote-og-admin">';
+		echo '<div class="wrap wp-remote-og-app wp-remote-og-admin wpog-fullwidth">';
 		self::render_shell( $active );
 		echo '<div class="wpog-page-head">';
 		echo '<div class="wpog-page-head-text">';
@@ -3803,7 +3803,7 @@ final class WP_Remote_OG_Admin {
 		$posts    = self::post_choices();
 		$export_url = wp_nonce_url( admin_url( 'admin-post.php?action=wp_remote_og_export_template' ), 'wp_remote_og_export_template' );
 		?>
-		<div class="wrap wp-remote-og-app wp-remote-og-admin wp-remote-og-editor-page">
+		<div class="wrap wp-remote-og-app wp-remote-og-admin wp-remote-og-editor-page wpog-fullwidth">
 			<?php self::render_shell( 'wp-remote-og-editor' ); ?>
 
 			<div class="wpog-editor-bar">
