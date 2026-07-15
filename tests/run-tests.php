@@ -334,6 +334,34 @@ update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
 WP_Remote_OG_Plugin::set_active_custom_id( '' );
 delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
 
+// --- Workstream 3: suppress third-party admin notices on plugin screens only.
+if ( ! function_exists( 'wp_remote_og_dummy_third_party_notice' ) ) {
+	function wp_remote_og_dummy_third_party_notice() {
+		echo '<div class="notice notice-warning"><p>Third-party plugin notice.</p></div>';
+	}
+}
+
+// Plugin screen: the foreign notice is removed and our own is re-hooked.
+remove_all_actions( 'admin_notices' );
+add_action( 'admin_notices', 'wp_remote_og_dummy_third_party_notice' );
+add_action( 'admin_notices', array( 'WP_Remote_OG_Admin', 'admin_notices' ) );
+$GLOBALS['hook_suffix'] = 'toplevel_page_wp-remote-og-dashboard';
+set_current_screen( 'wp-remote-og-dashboard' );
+wp_remote_og_assert( WP_Remote_OG_Admin::is_plugin_screen(), 'is_plugin_screen() detects a plugin admin screen.' );
+WP_Remote_OG_Admin::suppress_foreign_admin_notices();
+wp_remote_og_assert( false === has_action( 'admin_notices', 'wp_remote_og_dummy_third_party_notice' ), 'Third-party admin notice is removed on a plugin screen.' );
+wp_remote_og_assert( false !== has_action( 'admin_notices', array( 'WP_Remote_OG_Admin', 'admin_notices' ) ), 'Plugin own admin_notices callback stays hooked on a plugin screen.' );
+
+// Non-plugin screen: the foreign notice must be preserved (hook untouched).
+remove_all_actions( 'admin_notices' );
+add_action( 'admin_notices', 'wp_remote_og_dummy_third_party_notice' );
+$GLOBALS['hook_suffix'] = 'edit.php';
+set_current_screen( 'edit-post' );
+wp_remote_og_assert( ! WP_Remote_OG_Admin::is_plugin_screen(), 'is_plugin_screen() returns false on a non-plugin screen.' );
+WP_Remote_OG_Admin::suppress_foreign_admin_notices();
+wp_remote_og_assert( false !== has_action( 'admin_notices', 'wp_remote_og_dummy_third_party_notice' ), 'Third-party admin notice is preserved on a non-plugin screen.' );
+remove_all_actions( 'admin_notices' );
+
 $admin_css = file_get_contents( dirname( __DIR__ ) . '/assets/admin.css' );
 wp_remote_og_assert( (bool) preg_match( '/\.wp-remote-og-layer-text\s*\{[^}]*width:\s*100%;/s', $admin_css ), 'Editor preview text span fills the layer width for alignment.' );
 $plugin_source = file_get_contents( dirname( __DIR__ ) . '/wp-remote-og-plugins.php' );

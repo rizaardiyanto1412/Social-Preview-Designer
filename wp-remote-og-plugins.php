@@ -2804,6 +2804,9 @@ final class WP_Remote_OG_Admin {
 		add_action( 'admin_init', array( __CLASS__, 'maybe_redirect_legacy_editor' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'admin_notices' ) );
+		// Fires right before the admin_notices hooks render, so removing foreign
+		// callbacks here leaves no leftover whitespace on our screens.
+		add_action( 'in_admin_header', array( __CLASS__, 'suppress_foreign_admin_notices' ) );
 		add_action( 'add_meta_boxes_post', array( __CLASS__, 'add_meta_box' ) );
 		add_action( 'admin_post_wp_remote_og_export_template', array( __CLASS__, 'export_template' ) );
 		add_action( 'admin_post_wp_remote_og_import_template', array( __CLASS__, 'import_template' ) );
@@ -2968,6 +2971,53 @@ final class WP_Remote_OG_Admin {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Are we currently on one of the plugin's own admin screens?
+	 *
+	 * Detects via the current screen id and, defensively, the hook suffix, both
+	 * of which carry the shared 'wp-remote-og' slug fragment for every plugin
+	 * page (dashboard, editor, legacy alias, templates, fields, fonts, tools,
+	 * diagnostics).
+	 *
+	 * @return bool
+	 */
+	public static function is_plugin_screen() {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( $screen && isset( $screen->id ) && false !== strpos( (string) $screen->id, 'wp-remote-og' ) ) {
+			return true;
+		}
+
+		if ( isset( $GLOBALS['hook_suffix'] ) && false !== strpos( (string) $GLOBALS['hook_suffix'], 'wp-remote-og' ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * On the plugin's own screens only, strip third-party admin notices so they
+	 * do not clutter the app UI, then re-hook the plugin's own notices.
+	 *
+	 * Runs on 'in_admin_header' (right before the admin_notices hooks fire).
+	 * Uses remove_all_actions + re-add of our own callback — the standard robust
+	 * pattern — rather than CSS hiding, so no empty whitespace is left behind.
+	 * Non-plugin screens are never touched.
+	 *
+	 * @return void
+	 */
+	public static function suppress_foreign_admin_notices() {
+		if ( ! self::is_plugin_screen() ) {
+			return;
+		}
+
+		foreach ( array( 'admin_notices', 'all_admin_notices', 'network_admin_notices', 'user_admin_notices' ) as $notice_hook ) {
+			remove_all_actions( $notice_hook );
+		}
+
+		// Re-hook the plugin's own actionable notices so they still render.
+		add_action( 'admin_notices', array( __CLASS__, 'admin_notices' ) );
 	}
 
 	public static function admin_notices() {
