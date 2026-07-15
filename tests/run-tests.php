@@ -160,6 +160,24 @@ foreach ( $presets as $preset ) {
 }
 wp_remote_og_assert( $preset_all_ok, 'Every preset passes sanitize_template() unchanged (deep compare).' );
 wp_remote_og_assert( $preset_render_ok, 'Every preset renders via GD to exactly 1200x630.' );
+// Custom layer names must round-trip through sanitize_template() unchanged, so
+// a user-authored name ("Bottom blue") survives save/reload. An empty label is
+// preserved as empty (the editor derives its display name at render time), and
+// a genuinely missing label falls back to the generic type default exactly once.
+$label_round_trip = WP_Remote_OG_Plugin::sanitize_template( array(
+	'layers' => array(
+		array( 'id' => 'l1', 'type' => 'line', 'line_orientation' => 'horizontal', 'label' => 'Bottom blue' ),
+		array( 'id' => 'l2', 'type' => 'text', 'content' => 'Hello', 'label' => '' ),
+		array( 'id' => 'l3', 'type' => 'image', 'content' => '' ),
+	),
+) );
+wp_remote_og_assert( 'Bottom blue' === $label_round_trip['layers'][0]['label'], 'sanitize_template preserves a custom layer name.' );
+wp_remote_og_assert( '' === $label_round_trip['layers'][1]['label'], 'sanitize_template preserves an empty (derived-at-render) layer name.' );
+wp_remote_og_assert( 'Image Layer' === $label_round_trip['layers'][2]['label'], 'sanitize_template supplies a generic default only when the label key is absent.' );
+// Idempotency: the custom name is not clobbered on a second pass.
+$label_second_pass = WP_Remote_OG_Plugin::sanitize_template( $label_round_trip );
+wp_remote_og_assert( 'Bottom blue' === $label_second_pass['layers'][0]['label'], 'sanitize_template is idempotent for a custom layer name.' );
+
 wp_remote_og_assert( null === WP_Remote_OG_Presets::get( 'no-such-preset-key' ), 'Unknown preset key is rejected by the registry.' );
 wp_remote_og_assert( is_array( WP_Remote_OG_Presets::get( $presets[0]['key'] ) ), 'Known preset key resolves from the registry.' );
 

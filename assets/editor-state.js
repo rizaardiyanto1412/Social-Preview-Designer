@@ -42,6 +42,96 @@
 		return Math.max(min, Math.min(max, value));
 	}
 
+	// The generic, type-derived layer names the editor may auto-assign. A label
+	// matching one of these (or empty) is NOT a user-authored custom name, so it
+	// may be refreshed/cleared on a type or orientation change. A label outside
+	// this set is a custom name and must never be overwritten by the editor.
+	var GENERIC_LAYER_LABELS = [
+		'Text Layer',
+		'Image Layer',
+		'Line Layer',
+		'Horizontal Line',
+		'Vertical Line'
+	];
+
+	/**
+	 * Is `label` an auto-assigned generic name (or empty) rather than a
+	 * user-authored custom name?
+	 */
+	function isGenericLayerLabel(label) {
+		if (label == null) {
+			return true;
+		}
+		var trimmed = String(label).trim();
+		if (!trimmed) {
+			return true;
+		}
+		return GENERIC_LAYER_LABELS.indexOf(trimmed) >= 0;
+	}
+
+	function lineOrientationOf(layer) {
+		return layer && 'vertical' === layer.line_orientation ? 'vertical' : 'horizontal';
+	}
+
+	/**
+	 * The generic, type-derived label for a layer (never persisted; used only
+	 * as a display fallback and as the "known generic" baseline for migration).
+	 */
+	function typeLabel(layer) {
+		if (!layer) {
+			return '';
+		}
+		if ('image' === layer.type) {
+			return 'Image Layer';
+		}
+		if ('line' === layer.type) {
+			return 'vertical' === lineOrientationOf(layer) ? 'Vertical Line' : 'Horizontal Line';
+		}
+		return 'Text Layer';
+	}
+
+	/**
+	 * Derive the display name for a layer WITHOUT mutating it.
+	 *
+	 *  - A non-empty custom label (outside the generic set) always wins and is
+	 *    shown verbatim, regardless of type/content/orientation.
+	 *  - Otherwise text layers show their resolved preview text (or raw content,
+	 *    falling back to the generic "Text Layer"); image/line layers show the
+	 *    generic type label.
+	 *
+	 * This is the single place display names are computed, so selection, control
+	 * sync, render, undo/redo and duplicate never need to write into `label`.
+	 */
+	function deriveLayerName(layer, resolvedText) {
+		if (!layer) {
+			return '';
+		}
+		var custom = layer.label == null ? '' : String(layer.label).trim();
+		if (custom && !isGenericLayerLabel(custom)) {
+			return custom;
+		}
+		if ('image' === layer.type || 'line' === layer.type) {
+			return typeLabel(layer);
+		}
+		var text = null != resolvedText && '' !== resolvedText ? resolvedText : (layer.content || '');
+		return text || 'Text Layer';
+	}
+
+	/**
+	 * Decide the layer's stored label after a type/orientation change.
+	 *
+	 * A custom name persists across the change; a generic (or empty) name is
+	 * cleared so the display derivation reflects the new type. Returns the label
+	 * the caller should store (never a generic string — generics live only in
+	 * the render-time derivation).
+	 */
+	function reconcileLabelForTypeChange(previousLabel, changed) {
+		if (!changed) {
+			return null == previousLabel ? '' : previousLabel;
+		}
+		return isGenericLayerLabel(previousLabel) ? '' : previousLabel;
+	}
+
 	/**
 	 * dirty === current template differs from the last persisted snapshot.
 	 */
@@ -420,6 +510,11 @@
 		HISTORY_LIMIT: HISTORY_LIMIT,
 		CANVAS_WIDTH: CANVAS_WIDTH,
 		CANVAS_HEIGHT: CANVAS_HEIGHT,
+		GENERIC_LAYER_LABELS: GENERIC_LAYER_LABELS,
+		isGenericLayerLabel: isGenericLayerLabel,
+		typeLabel: typeLabel,
+		deriveLayerName: deriveLayerName,
+		reconcileLabelForTypeChange: reconcileLabelForTypeChange,
 		clone: clone,
 		equals: equals,
 		clamp: clamp,

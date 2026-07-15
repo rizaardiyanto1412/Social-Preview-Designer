@@ -406,7 +406,8 @@
 				return;
 			}
 
-			var accessibleLabel = layer.label || ('line' === layer.type ? lineLayerLabel(layer) : ('image' === layer.type ? 'Image Layer' : layer.content)) || layer.id;
+			var resolvedForName = state.preview[layer.id] && typeof state.preview[layer.id].resolved === 'string' ? state.preview[layer.id].resolved : '';
+			var accessibleLabel = ES.deriveLayerName(layer, resolvedForName) || layer.id;
 			var node = $('<div/>', {
 				'class': 'wp-remote-og-layer',
 				'data-layer-id': layer.id,
@@ -433,7 +434,7 @@
 					imageWrap.append($('<img/>', {
 						'class': 'wp-remote-og-layer-image-content',
 						src: imageSource,
-						alt: layer.label || 'Image layer'
+						alt: ES.deriveLayerName(layer) || 'Image layer'
 					}));
 				} else {
 					imageWrap.append($('<span/>', {
@@ -980,7 +981,8 @@
 			return layer.id === state.selectedLayerId;
 		});
 		state.template.layers.forEach(function (layer, index) {
-			var labelText = layer.label || ('line' === layer.type ? lineLayerLabel(layer) : layer.content) || layer.id;
+			var resolvedForName = state.preview[layer.id] && typeof state.preview[layer.id].resolved === 'string' ? state.preview[layer.id].resolved : '';
+			var labelText = ES.deriveLayerName(layer, resolvedForName) || layer.id;
 			var isSelected = layer.id === state.selectedLayerId;
 			// Roving tabindex: only the selected (or first, if none selected) item is tabbable.
 			var tabbable = isSelected || (!hasSelection && 0 === index);
@@ -1027,7 +1029,8 @@
 
 		$('#wp-remote-og-inspector-empty').hide();
 		$('#wp-remote-og-inspector-body').show();
-		var inspectorName = layer.label || ('line' === layer.type ? lineLayerLabel(layer) : ('image' === layer.type ? 'Image Layer' : layer.content)) || layer.id;
+		var resolvedForName = state.preview[layer.id] && typeof state.preview[layer.id].resolved === 'string' ? state.preview[layer.id].resolved : '';
+		var inspectorName = ES.deriveLayerName(layer, resolvedForName) || layer.id;
 		$('#wp-remote-og-inspector-name').text(inspectorName);
 
 		var isImage = 'image' === layer.type;
@@ -1088,9 +1091,15 @@
 		layer.type = selectedType;
 		layer.x = clamp($('#wp-remote-og-layer-x').val(), 0, 1200);
 		layer.y = clamp($('#wp-remote-og-layer-y').val(), 0, 630);
+		// The user-authored name (layer.label) is NEVER derived/clobbered here.
+		// It only changes when the type or orientation changes AND the existing
+		// name was a generic auto-label — in which case it is cleared so the
+		// render-time derivation reflects the new type. Custom names always stick.
+		var typeOrOrientationChanged = previousType !== selectedType ||
+			('line' === selectedType && previousOrientation !== selectedLineOrientation);
+		layer.label = ES.reconcileLabelForTypeChange(layer.label, typeOrOrientationChanged);
 		if ('image' === selectedType) {
 			layer.content = content || '';
-			layer.label = layer.label || 'Image Layer';
 			layer.image_shape = $('#wp-remote-og-layer-image-shape').val() || 'square';
 			layer.image_fit = imageFit({
 				image_fit: $('#wp-remote-og-layer-image-fit').val()
@@ -1098,7 +1107,6 @@
 		} else if ('line' === selectedType) {
 			layer.content = '';
 			layer.line_orientation = selectedLineOrientation;
-			layer.label = lineLayerLabel(layer);
 			layer.color = $('#wp-remote-og-layer-color').val() || '#111827';
 			if ('line' !== previousType || previousOrientation !== selectedLineOrientation) {
 				var defaultDimensions = defaultLineDimensions(layer, selectedLineOrientation);
@@ -1107,7 +1115,6 @@
 			}
 		} else {
 			layer.content = content || '{post_title}';
-			layer.label = layer.content;
 			layer.font_id = $('#wp-remote-og-layer-font').val() || '';
 			layer.font_size = clamp($('#wp-remote-og-layer-font-size').val(), 8, 180);
 			layer.min_font_size = clamp($('#wp-remote-og-layer-min-font-size').val(), 6, layer.font_size);
@@ -1153,7 +1160,7 @@
 			id: id,
 			type: 'text',
 			content: '{post_title}',
-			label: 'Text Layer',
+			label: '',
 			x: 120,
 			y: 120,
 			width: 720,
@@ -1178,7 +1185,7 @@
 			id: id,
 			type: 'image',
 			content: '',
-			label: 'Image Layer',
+			label: '',
 			x: 120,
 			y: 120,
 			width: 160,
@@ -1208,7 +1215,7 @@
 			id: id,
 			type: 'line',
 			content: '',
-			label: isVertical ? 'Vertical Line' : 'Horizontal Line',
+			label: '',
 			x: isVertical ? 120 : 90,
 			y: isVertical ? 90 : 520,
 			width: isVertical ? 6 : 420,
