@@ -31,6 +31,12 @@ final class WP_Remote_OG_Plugin {
 	const OPTION_TEMPLATE_VERSION   = 'wp_remote_og_template_version';
 	const OPTION_TEMPLATE_DIRTY     = 'wp_remote_og_template_needs_regeneration';
 	const OPTION_TEMPLATE_BACKUP    = 'wp_remote_og_template_backup';
+	const OPTION_CUSTOM_TEMPLATES   = 'wp_remote_og_custom_templates';
+	const OPTION_ACTIVE_CUSTOM_ID   = 'wp_remote_og_active_custom_id';
+	const MAX_CUSTOM_TEMPLATES      = 50;
+	const MAX_CUSTOM_TEMPLATE_BYTES = 204800; // 200 KB serialized guard, mirrors the import size guard.
+	const MAX_CUSTOM_TEMPLATE_NAME  = 100;
+	const CUSTOM_TEMPLATE_SCHEMA_VERSION = 1;
 	const OPTION_GENERATION_LOG     = 'wp_remote_og_generation_log';
 	const OPTION_ACTIVATION_ERROR   = 'wp_remote_og_activation_error';
 	const OPTION_PUBLISHPRESS_AVATAR_TOKEN = 'wp_remote_og_publishpress_avatar_token';
@@ -396,6 +402,82 @@ final class WP_Remote_OG_Plugin {
 		}
 
 		return $template;
+	}
+
+	/**
+	 * Normalize a user-supplied custom-template name: unslash, strip tags via
+	 * sanitize_text_field, and trim. May be empty (callers validate).
+	 *
+	 * @param string $name Raw name.
+	 * @return string
+	 */
+	public static function sanitize_custom_template_name( $name ) {
+		return trim( sanitize_text_field( wp_unslash( (string) $name ) ) );
+	}
+
+	/**
+	 * Canonicalize one stored custom-template record. The template body is run
+	 * through sanitize_template() so records are always safe to render.
+	 *
+	 * @param array $record Raw record.
+	 * @return array
+	 */
+	public static function sanitize_custom_template_record( $record ) {
+		$record = is_array( $record ) ? $record : array();
+		$id     = isset( $record['id'] ) ? sanitize_text_field( $record['id'] ) : '';
+
+		return array(
+			'id'             => $id,
+			'name'           => isset( $record['name'] ) ? self::sanitize_custom_template_name( $record['name'] ) : '',
+			'template'       => self::sanitize_template( isset( $record['template'] ) ? $record['template'] : array() ),
+			'schema_version' => isset( $record['schema_version'] ) ? absint( $record['schema_version'] ) : self::CUSTOM_TEMPLATE_SCHEMA_VERSION,
+			'created_at'     => isset( $record['created_at'] ) ? sanitize_text_field( $record['created_at'] ) : '',
+			'updated_at'     => isset( $record['updated_at'] ) ? sanitize_text_field( $record['updated_at'] ) : '',
+		);
+	}
+
+	/**
+	 * All custom templates keyed by their stable id (canonicalized on read).
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	public static function get_custom_templates() {
+		$stored = get_option( self::OPTION_CUSTOM_TEMPLATES, array() );
+		if ( ! is_array( $stored ) ) {
+			return array();
+		}
+
+		$clean = array();
+		foreach ( $stored as $record ) {
+			if ( ! is_array( $record ) || empty( $record['id'] ) ) {
+				continue;
+			}
+			$sanitized = self::sanitize_custom_template_record( $record );
+			if ( '' !== $sanitized['id'] ) {
+				$clean[ $sanitized['id'] ] = $sanitized;
+			}
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * Persist the custom-templates map (values re-indexed for storage).
+	 *
+	 * @param array $templates Map keyed by id.
+	 * @return void
+	 */
+	public static function save_custom_templates( $templates ) {
+		$templates = is_array( $templates ) ? array_values( $templates ) : array();
+		update_option( self::OPTION_CUSTOM_TEMPLATES, $templates, false );
+	}
+
+	public static function get_active_custom_id() {
+		return sanitize_text_field( (string) get_option( self::OPTION_ACTIVE_CUSTOM_ID, '' ) );
+	}
+
+	public static function set_active_custom_id( $id ) {
+		update_option( self::OPTION_ACTIVE_CUSTOM_ID, sanitize_text_field( (string) $id ), false );
 	}
 
 	public static function get_dynamic_fields() {
@@ -2736,6 +2818,12 @@ final class WP_Remote_OG_Admin {
 		add_action( 'wp_ajax_wp_remote_og_google_fonts', array( __CLASS__, 'ajax_google_fonts' ) );
 		add_action( 'wp_ajax_wp_remote_og_apply_preset', array( __CLASS__, 'ajax_apply_preset' ) );
 		add_action( 'wp_ajax_wp_remote_og_restore_template_backup', array( __CLASS__, 'ajax_restore_template_backup' ) );
+		add_action( 'wp_ajax_wp_remote_og_create_custom_template', array( __CLASS__, 'ajax_create_custom_template' ) );
+		add_action( 'wp_ajax_wp_remote_og_update_custom_template', array( __CLASS__, 'ajax_update_custom_template' ) );
+		add_action( 'wp_ajax_wp_remote_og_rename_custom_template', array( __CLASS__, 'ajax_rename_custom_template' ) );
+		add_action( 'wp_ajax_wp_remote_og_duplicate_custom_template', array( __CLASS__, 'ajax_duplicate_custom_template' ) );
+		add_action( 'wp_ajax_wp_remote_og_delete_custom_template', array( __CLASS__, 'ajax_delete_custom_template' ) );
+		add_action( 'wp_ajax_wp_remote_og_apply_custom_template', array( __CLASS__, 'ajax_apply_custom_template' ) );
 	}
 
 	public static function admin_menu() {
@@ -2837,6 +2925,10 @@ final class WP_Remote_OG_Admin {
 				'presetCategories' => WP_Remote_OG_Presets::categories(),
 				'hasBackup'      => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP ),
 				'editorUrl'      => admin_url( 'admin.php?page=wp-remote-og-editor' ),
+				'customTemplates' => self::custom_templates_list(),
+				'activeCustomId' => WP_Remote_OG_Plugin::get_active_custom_id(),
+				'maxCustomTemplates' => WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES,
+				'maxCustomNameLength' => WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_NAME,
 				'strings'        => array(
 					'saved'      => __( 'Template saved.', 'wp-remote-og-plugins' ),
 					'savedShort' => __( 'Saved', 'wp-remote-og-plugins' ),
@@ -2851,6 +2943,28 @@ final class WP_Remote_OG_Admin {
 					'previewNote' => __( 'Preview uses sample placeholder content.', 'wp-remote-og-plugins' ),
 					'close'      => __( 'Close', 'wp-remote-og-plugins' ),
 					'apply'      => __( 'Apply template', 'wp-remote-og-plugins' ),
+					'saveAsTitle'   => __( 'Save as reusable template', 'wp-remote-og-plugins' ),
+					'saveAsPrompt'  => __( 'Give this template a name so you can reuse it later.', 'wp-remote-og-plugins' ),
+					'nameLabel'     => __( 'Template name', 'wp-remote-og-plugins' ),
+					'saveAsReusable' => __( 'Save as reusable template', 'wp-remote-og-plugins' ),
+					'justSave'      => __( 'Just save', 'wp-remote-og-plugins' ),
+					'cancel'        => __( 'Cancel', 'wp-remote-og-plugins' ),
+					'defaultTemplateName' => __( 'My Template', 'wp-remote-og-plugins' ),
+					'nameRequired'  => __( 'Please enter a template name.', 'wp-remote-og-plugins' ),
+					'nameTooLong'   => __( 'Template names must be 100 characters or fewer.', 'wp-remote-og-plugins' ),
+					'templateSaved' => __( 'Template saved to My Templates.', 'wp-remote-og-plugins' ),
+					'customEmpty'   => __( 'You have not saved any templates yet. Design one in the editor, then choose “Save as reusable template”.', 'wp-remote-og-plugins' ),
+					'rename'        => __( 'Rename', 'wp-remote-og-plugins' ),
+					'duplicate'     => __( 'Duplicate', 'wp-remote-og-plugins' ),
+					'delete'        => __( 'Delete', 'wp-remote-og-plugins' ),
+					'applyEdit'     => __( 'Apply & edit', 'wp-remote-og-plugins' ),
+					'preview'       => __( 'Preview', 'wp-remote-og-plugins' ),
+					'renamePrompt'  => __( 'Rename template', 'wp-remote-og-plugins' ),
+					'deleteConfirm' => __( 'Delete this template? This cannot be undone. Your current editor design is not affected.', 'wp-remote-og-plugins' ),
+					'save'          => __( 'Save', 'wp-remote-og-plugins' ),
+					'updatedLabel'  => __( 'Updated', 'wp-remote-og-plugins' ),
+					'builtInHeading' => __( 'Built-in Templates', 'wp-remote-og-plugins' ),
+					'myTemplatesHeading' => __( 'My Templates', 'wp-remote-og-plugins' ),
 				),
 			)
 		);
@@ -3422,13 +3536,41 @@ final class WP_Remote_OG_Admin {
 			</p>
 		</div>
 		<div class="wp-remote-og-gallery-status" id="wp-remote-og-gallery-status" aria-live="polite"></div>
-		<div class="wp-remote-og-gallery-filters" role="group" aria-label="<?php esc_attr_e( 'Filter templates by category', 'wp-remote-og-plugins' ); ?>">
-			<button type="button" class="wpog-filter-pill is-active" data-category="all" aria-pressed="true"><?php esc_html_e( 'All', 'wp-remote-og-plugins' ); ?></button>
-			<?php foreach ( $categories as $category ) : ?>
-				<button type="button" class="wpog-filter-pill" data-category="<?php echo esc_attr( $category ); ?>" aria-pressed="false"><?php echo esc_html( $category ); ?></button>
-			<?php endforeach; ?>
+
+		<section class="wpog-templates-section" aria-labelledby="wpog-my-templates-heading">
+			<h2 class="wpog-templates-heading" id="wpog-my-templates-heading"><?php esc_html_e( 'My Templates', 'wp-remote-og-plugins' ); ?></h2>
+			<p class="wpog-templates-subhead"><?php esc_html_e( 'Reusable templates you saved from the editor. Apply one to make it your active design.', 'wp-remote-og-plugins' ); ?></p>
+			<div class="wp-remote-og-custom-status" id="wp-remote-og-custom-status" aria-live="polite"></div>
+			<div class="wp-remote-og-custom-gallery" id="wp-remote-og-custom-gallery" role="list" aria-label="<?php esc_attr_e( 'My templates', 'wp-remote-og-plugins' ); ?>"></div>
+		</section>
+
+		<section class="wpog-templates-section" aria-labelledby="wpog-builtin-heading">
+			<h2 class="wpog-templates-heading" id="wpog-builtin-heading"><?php esc_html_e( 'Built-in Templates', 'wp-remote-og-plugins' ); ?></h2>
+			<div class="wp-remote-og-gallery-filters" role="group" aria-label="<?php esc_attr_e( 'Filter templates by category', 'wp-remote-og-plugins' ); ?>">
+				<button type="button" class="wpog-filter-pill is-active" data-category="all" aria-pressed="true"><?php esc_html_e( 'All', 'wp-remote-og-plugins' ); ?></button>
+				<?php foreach ( $categories as $category ) : ?>
+					<button type="button" class="wpog-filter-pill" data-category="<?php echo esc_attr( $category ); ?>" aria-pressed="false"><?php echo esc_html( $category ); ?></button>
+				<?php endforeach; ?>
+			</div>
+			<div class="wp-remote-og-gallery" id="wp-remote-og-gallery" role="list" aria-label="<?php esc_attr_e( 'Template presets', 'wp-remote-og-plugins' ); ?>"></div>
+		</section>
+
+		<div class="wp-remote-og-name-modal" id="wp-remote-og-name-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-name-modal-title" hidden>
+			<div class="wp-remote-og-preset-modal-backdrop" data-name-close="1"></div>
+			<div class="wp-remote-og-preset-modal-panel wp-remote-og-name-modal-panel">
+				<button type="button" class="wp-remote-og-preset-modal-close" data-name-close="1" aria-label="<?php esc_attr_e( 'Close', 'wp-remote-og-plugins' ); ?>">&times;</button>
+				<h2 id="wp-remote-og-name-modal-title" class="wp-remote-og-preset-modal-heading"></h2>
+				<p id="wp-remote-og-name-modal-desc" class="wp-remote-og-preset-modal-desc"></p>
+				<label class="wpog-name-field" for="wp-remote-og-name-input"><span class="screen-reader-text"><?php esc_html_e( 'Template name', 'wp-remote-og-plugins' ); ?></span>
+					<input type="text" id="wp-remote-og-name-input" maxlength="100" autocomplete="off">
+				</label>
+				<p class="wpog-name-error" id="wp-remote-og-name-error" role="alert" aria-live="assertive"></p>
+				<div class="wp-remote-og-preset-modal-actions">
+					<button type="button" class="button" id="wp-remote-og-name-cancel"></button>
+					<button type="button" class="button button-primary" id="wp-remote-og-name-confirm"></button>
+				</div>
+			</div>
 		</div>
-		<div class="wp-remote-og-gallery" id="wp-remote-og-gallery" role="list" aria-label="<?php esc_attr_e( 'Template presets', 'wp-remote-og-plugins' ); ?>"></div>
 		<div class="wp-remote-og-preset-modal" id="wp-remote-og-preset-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-preset-modal-title" aria-describedby="wp-remote-og-preset-modal-desc" hidden>
 			<div class="wp-remote-og-preset-modal-backdrop" data-modal-close="1"></div>
 			<div class="wp-remote-og-preset-modal-panel">
@@ -3477,6 +3619,7 @@ final class WP_Remote_OG_Admin {
 					<div class="wpog-overflow" data-overflow>
 						<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'More actions', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'More actions', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'more' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
 						<div class="wpog-overflow-menu" hidden>
+							<button type="button" class="wpog-overflow-item" id="wp-remote-og-save-as-template"><?php esc_html_e( 'Save as reusable template…', 'wp-remote-og-plugins' ); ?></button>
 							<button type="button" class="wpog-overflow-item" id="wp-remote-og-background"><?php esc_html_e( 'Select background image', 'wp-remote-og-plugins' ); ?></button>
 							<a class="wpog-overflow-item" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export template (JSON)', 'wp-remote-og-plugins' ); ?></a>
 							<form class="wp-remote-og-import-template wpog-overflow-import" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" enctype="multipart/form-data">
@@ -3662,6 +3805,23 @@ final class WP_Remote_OG_Admin {
 					</aside>
 				</div>
 				<div id="wp-remote-og-status" class="wp-remote-og-status" aria-live="polite"></div>
+			</div>
+
+			<div class="wp-remote-og-name-modal" id="wp-remote-og-name-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-name-modal-title" hidden>
+				<div class="wp-remote-og-preset-modal-backdrop" data-name-close="1"></div>
+				<div class="wp-remote-og-preset-modal-panel wp-remote-og-name-modal-panel">
+					<button type="button" class="wp-remote-og-preset-modal-close" data-name-close="1" aria-label="<?php esc_attr_e( 'Close', 'wp-remote-og-plugins' ); ?>">&times;</button>
+					<h2 id="wp-remote-og-name-modal-title" class="wp-remote-og-preset-modal-heading"></h2>
+					<p id="wp-remote-og-name-modal-desc" class="wp-remote-og-preset-modal-desc"></p>
+					<label class="wpog-name-field" for="wp-remote-og-name-input"><span class="screen-reader-text"><?php esc_html_e( 'Template name', 'wp-remote-og-plugins' ); ?></span>
+						<input type="text" id="wp-remote-og-name-input" maxlength="100" autocomplete="off">
+					</label>
+					<p class="wpog-name-error" id="wp-remote-og-name-error" role="alert" aria-live="assertive"></p>
+					<div class="wp-remote-og-preset-modal-actions">
+						<button type="button" class="button" id="wp-remote-og-name-cancel"></button>
+						<button type="button" class="button button-primary" id="wp-remote-og-name-confirm"></button>
+					</div>
+				</div>
 			</div>
 		</div>
 		<?php
@@ -3942,18 +4102,70 @@ final class WP_Remote_OG_Admin {
 		}
 	}
 
+	/**
+	 * Persist the active template and, when linked/named, keep the matching
+	 * custom-template record in sync. Pure core (array|WP_Error) so the save
+	 * semantics are unit-testable.
+	 *
+	 * Rules (no duplicate records are ever created for a linked design):
+	 *  - A non-empty $new_name creates a new custom record and links to it.
+	 *  - Otherwise a valid, existing $custom_id updates that record in place.
+	 *  - Otherwise the active template is saved unlinked (active_custom_id '').
+	 *
+	 * @param mixed  $template  Raw template payload.
+	 * @param string $custom_id Existing custom id to update, or ''.
+	 * @param string $new_name  New name to save-as, or ''.
+	 * @return array|WP_Error
+	 */
+	public static function save_active_template( $template, $custom_id = '', $new_name = '' ) {
+		$template  = WP_Remote_OG_Plugin::save_template( $template );
+		$new_name  = WP_Remote_OG_Plugin::sanitize_custom_template_name( $new_name );
+		$custom_id = sanitize_text_field( (string) $custom_id );
+		$active_id = '';
+
+		if ( '' !== $new_name ) {
+			$created = self::create_custom_template( $new_name, $template );
+			if ( is_wp_error( $created ) ) {
+				return $created;
+			}
+			$active_id = $created['id'];
+		} elseif ( '' !== $custom_id ) {
+			$existing = WP_Remote_OG_Plugin::get_custom_templates();
+			if ( isset( $existing[ $custom_id ] ) ) {
+				$updated = self::update_custom_template( $custom_id, $template );
+				if ( is_wp_error( $updated ) ) {
+					return $updated;
+				}
+				$active_id = $custom_id;
+			}
+		}
+
+		WP_Remote_OG_Plugin::set_active_custom_id( $active_id );
+
+		return array(
+			'template'        => $template,
+			'version'         => get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_VERSION ),
+			'dirty'           => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
+			'customId'        => $active_id,
+			'customTemplates' => self::custom_templates_list(),
+		);
+	}
+
 	public static function ajax_save_template() {
 		self::verify_ajax();
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); the template array is fully sanitized in sanitize_template() via save_template().
-		$template = isset( $_POST['template'] ) ? wp_unslash( $_POST['template'] ) : array();
-		$template = WP_Remote_OG_Plugin::save_template( $template );
-		wp_send_json_success(
-			array(
-				'template' => $template,
-				'version'  => get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_VERSION ),
-				'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
-			)
-		);
+		$template  = isset( $_POST['template'] ) ? wp_unslash( $_POST['template'] ) : array();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax(); sanitized in save_active_template().
+		$custom_id = isset( $_POST['custom_id'] ) ? sanitize_text_field( wp_unslash( $_POST['custom_id'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); sanitized in save_active_template().
+		$new_name  = isset( $_POST['custom_name'] ) ? wp_unslash( $_POST['custom_name'] ) : '';
+
+		$result = self::save_active_template( $template, $custom_id, $new_name );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
+
+		wp_send_json_success( $result );
 	}
 
 	public static function ajax_preview() {
@@ -4070,11 +4282,16 @@ final class WP_Remote_OG_Admin {
 
 		$template = WP_Remote_OG_Plugin::save_template( $preset['template'] );
 
+		// A built-in preset is not a custom record: unlink so a later editor Save
+		// never overwrites a user's custom template with the applied preset.
+		WP_Remote_OG_Plugin::set_active_custom_id( '' );
+
 		return array(
 			'template' => $template,
 			'preset'   => $preset['key'],
 			'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
 			'backup'   => true,
+			'customId' => '',
 		);
 	}
 
@@ -4117,6 +4334,336 @@ final class WP_Remote_OG_Admin {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
 		}
 
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * Stable unique id for a new custom-template record.
+	 *
+	 * @return string
+	 */
+	private static function generate_custom_id() {
+		if ( function_exists( 'wp_generate_uuid4' ) ) {
+			return 'custom-' . wp_generate_uuid4();
+		}
+		return 'custom-' . uniqid( '', true );
+	}
+
+	/**
+	 * Public list view of custom templates (values array) for boot data and
+	 * AJAX responses.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function custom_templates_list() {
+		return array_values( WP_Remote_OG_Plugin::get_custom_templates() );
+	}
+
+	/**
+	 * Validate a name and guard the serialized record size. Shared by create and
+	 * duplicate/update flows.
+	 *
+	 * @param array $record Record about to be stored.
+	 * @return true|WP_Error
+	 */
+	private static function guard_custom_template_record( $record ) {
+		$size = strlen( (string) wp_json_encode( $record ) );
+		if ( $size > WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_BYTES ) {
+			return new WP_Error( 'wp_remote_og_template_too_large', __( 'This template is too large to save.', 'wp-remote-og-plugins' ) );
+		}
+		return true;
+	}
+
+	/**
+	 * Validate a custom-template name. Pure.
+	 *
+	 * @param string $name Already-sanitized name.
+	 * @return true|WP_Error
+	 */
+	private static function validate_custom_template_name( $name ) {
+		if ( '' === $name ) {
+			return new WP_Error( 'wp_remote_og_invalid_name', __( 'Please enter a template name.', 'wp-remote-og-plugins' ) );
+		}
+		if ( strlen( $name ) > WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_NAME ) {
+			return new WP_Error( 'wp_remote_og_invalid_name', __( 'Template names must be 100 characters or fewer.', 'wp-remote-og-plugins' ) );
+		}
+		return true;
+	}
+
+	/**
+	 * Create a new reusable custom template. Pure core (array|WP_Error).
+	 *
+	 * @param string $name     Template name.
+	 * @param mixed  $template Template payload (sanitized here).
+	 * @return array|WP_Error
+	 */
+	public static function create_custom_template( $name, $template ) {
+		$name = WP_Remote_OG_Plugin::sanitize_custom_template_name( $name );
+		$valid = self::validate_custom_template_name( $name );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+
+		$templates = WP_Remote_OG_Plugin::get_custom_templates();
+		if ( count( $templates ) >= WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES ) {
+			return new WP_Error( 'wp_remote_og_limit_reached', __( 'You have reached the maximum number of saved templates.', 'wp-remote-og-plugins' ) );
+		}
+
+		$now    = current_time( 'mysql' );
+		$record = array(
+			'id'             => self::generate_custom_id(),
+			'name'           => $name,
+			'template'       => WP_Remote_OG_Plugin::sanitize_template( $template ),
+			'schema_version' => WP_Remote_OG_Plugin::CUSTOM_TEMPLATE_SCHEMA_VERSION,
+			'created_at'     => $now,
+			'updated_at'     => $now,
+		);
+
+		$guard = self::guard_custom_template_record( $record );
+		if ( is_wp_error( $guard ) ) {
+			return $guard;
+		}
+
+		$templates[ $record['id'] ] = $record;
+		WP_Remote_OG_Plugin::save_custom_templates( $templates );
+
+		return array(
+			'id'              => $record['id'],
+			'record'          => $record,
+			'customTemplates' => self::custom_templates_list(),
+		);
+	}
+
+	/**
+	 * Replace the template body of an existing record. Pure core.
+	 *
+	 * @param string $id       Record id.
+	 * @param mixed  $template Template payload.
+	 * @return array|WP_Error
+	 */
+	public static function update_custom_template( $id, $template ) {
+		$id        = sanitize_text_field( (string) $id );
+		$templates = WP_Remote_OG_Plugin::get_custom_templates();
+		if ( ! isset( $templates[ $id ] ) ) {
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+		}
+
+		$record             = $templates[ $id ];
+		$record['template'] = WP_Remote_OG_Plugin::sanitize_template( $template );
+		$record['updated_at'] = current_time( 'mysql' );
+
+		$guard = self::guard_custom_template_record( $record );
+		if ( is_wp_error( $guard ) ) {
+			return $guard;
+		}
+
+		$templates[ $id ] = $record;
+		WP_Remote_OG_Plugin::save_custom_templates( $templates );
+
+		return array(
+			'id'              => $id,
+			'record'          => $record,
+			'customTemplates' => self::custom_templates_list(),
+		);
+	}
+
+	/**
+	 * Rename an existing record. Pure core.
+	 *
+	 * @param string $id   Record id.
+	 * @param string $name New name.
+	 * @return array|WP_Error
+	 */
+	public static function rename_custom_template( $id, $name ) {
+		$id        = sanitize_text_field( (string) $id );
+		$name      = WP_Remote_OG_Plugin::sanitize_custom_template_name( $name );
+		$valid     = self::validate_custom_template_name( $name );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+
+		$templates = WP_Remote_OG_Plugin::get_custom_templates();
+		if ( ! isset( $templates[ $id ] ) ) {
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+		}
+
+		$templates[ $id ]['name']       = $name;
+		$templates[ $id ]['updated_at'] = current_time( 'mysql' );
+		WP_Remote_OG_Plugin::save_custom_templates( $templates );
+
+		return array(
+			'id'              => $id,
+			'record'          => $templates[ $id ],
+			'customTemplates' => self::custom_templates_list(),
+		);
+	}
+
+	/**
+	 * Duplicate an existing record under a new id and " copy" name. Pure core.
+	 *
+	 * @param string $id Record id.
+	 * @return array|WP_Error
+	 */
+	public static function duplicate_custom_template( $id ) {
+		$id        = sanitize_text_field( (string) $id );
+		$templates = WP_Remote_OG_Plugin::get_custom_templates();
+		if ( ! isset( $templates[ $id ] ) ) {
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+		}
+
+		if ( count( $templates ) >= WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES ) {
+			return new WP_Error( 'wp_remote_og_limit_reached', __( 'You have reached the maximum number of saved templates.', 'wp-remote-og-plugins' ) );
+		}
+
+		$source = $templates[ $id ];
+		$name   = WP_Remote_OG_Plugin::sanitize_custom_template_name( $source['name'] . ' copy' );
+		$name   = '' === $name ? __( 'Copy', 'wp-remote-og-plugins' ) : substr( $name, 0, WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_NAME );
+		$now    = current_time( 'mysql' );
+		$record = array(
+			'id'             => self::generate_custom_id(),
+			'name'           => $name,
+			'template'       => WP_Remote_OG_Plugin::sanitize_template( $source['template'] ),
+			'schema_version' => WP_Remote_OG_Plugin::CUSTOM_TEMPLATE_SCHEMA_VERSION,
+			'created_at'     => $now,
+			'updated_at'     => $now,
+		);
+
+		$templates[ $record['id'] ] = $record;
+		WP_Remote_OG_Plugin::save_custom_templates( $templates );
+
+		return array(
+			'id'              => $record['id'],
+			'record'          => $record,
+			'customTemplates' => self::custom_templates_list(),
+		);
+	}
+
+	/**
+	 * Delete a record. If it is the active linked design, the active template is
+	 * left intact and simply unlinked (never destroyed). Pure core.
+	 *
+	 * @param string $id Record id.
+	 * @return array|WP_Error
+	 */
+	public static function delete_custom_template( $id ) {
+		$id        = sanitize_text_field( (string) $id );
+		$templates = WP_Remote_OG_Plugin::get_custom_templates();
+		if ( ! isset( $templates[ $id ] ) ) {
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+		}
+
+		unset( $templates[ $id ] );
+		WP_Remote_OG_Plugin::save_custom_templates( $templates );
+
+		$active_id = WP_Remote_OG_Plugin::get_active_custom_id();
+		if ( $active_id === $id ) {
+			// Unlink but keep the current active template design untouched.
+			WP_Remote_OG_Plugin::set_active_custom_id( '' );
+			$active_id = '';
+		}
+
+		return array(
+			'id'              => $id,
+			'customId'        => $active_id,
+			'customTemplates' => self::custom_templates_list(),
+		);
+	}
+
+	/**
+	 * Apply a custom template: it becomes the active template and the active
+	 * link. Preserve-first backup keeps the user's prior design restorable,
+	 * mirroring apply_preset. Pure core.
+	 *
+	 * @param string $id Record id.
+	 * @return array|WP_Error
+	 */
+	public static function apply_custom_template( $id ) {
+		$id        = sanitize_text_field( (string) $id );
+		$templates = WP_Remote_OG_Plugin::get_custom_templates();
+		if ( ! isset( $templates[ $id ] ) ) {
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+		}
+
+		if ( false === get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP, false ) ) {
+			update_option(
+				WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP,
+				array(
+					'template'   => WP_Remote_OG_Plugin::get_template(),
+					'created_at' => current_time( 'mysql' ),
+				),
+				false
+			);
+		}
+
+		$template = WP_Remote_OG_Plugin::save_template( $templates[ $id ]['template'] );
+		WP_Remote_OG_Plugin::set_active_custom_id( $id );
+
+		return array(
+			'template' => $template,
+			'customId' => $id,
+			'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
+			'backup'   => true,
+		);
+	}
+
+	public static function ajax_create_custom_template() {
+		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); name and template sanitized in the core.
+		$name     = isset( $_POST['name'] ) ? wp_unslash( $_POST['name'] ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); template sanitized in sanitize_template().
+		$template = isset( $_POST['template'] ) ? wp_unslash( $_POST['template'] ) : array();
+		self::respond_custom_template( self::create_custom_template( $name, $template ) );
+	}
+
+	public static function ajax_update_custom_template() {
+		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
+		$id       = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); template sanitized in sanitize_template().
+		$template = isset( $_POST['template'] ) ? wp_unslash( $_POST['template'] ) : array();
+		self::respond_custom_template( self::update_custom_template( $id, $template ) );
+	}
+
+	public static function ajax_rename_custom_template() {
+		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
+		$id   = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); name sanitized in the core.
+		$name = isset( $_POST['name'] ) ? wp_unslash( $_POST['name'] ) : '';
+		self::respond_custom_template( self::rename_custom_template( $id, $name ) );
+	}
+
+	public static function ajax_duplicate_custom_template() {
+		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
+		$id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+		self::respond_custom_template( self::duplicate_custom_template( $id ) );
+	}
+
+	public static function ajax_delete_custom_template() {
+		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
+		$id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+		self::respond_custom_template( self::delete_custom_template( $id ) );
+	}
+
+	public static function ajax_apply_custom_template() {
+		self::verify_ajax();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in verify_ajax().
+		$id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+		self::respond_custom_template( self::apply_custom_template( $id ) );
+	}
+
+	/**
+	 * Shared JSON responder for the custom-template AJAX wrappers.
+	 *
+	 * @param array|WP_Error $result Core result.
+	 * @return void
+	 */
+	private static function respond_custom_template( $result ) {
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
 		wp_send_json_success( $result );
 	}
 

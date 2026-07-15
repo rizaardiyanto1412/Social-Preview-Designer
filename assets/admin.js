@@ -14,7 +14,8 @@
 		interaction: null,
 		mediaFrame: null,
 		history: { undo: [], redo: [] },
-		dirtySinceSave: false
+		dirtySinceSave: false,
+		customId: window.WPRemoteOG && WPRemoteOG.activeCustomId ? WPRemoteOG.activeCustomId : ''
 	};
 
 	var HISTORY_LIMIT = ES.HISTORY_LIMIT;
@@ -1285,20 +1286,33 @@
 		state.mediaFrame.open();
 	}
 
-	function saveTemplate() {
+	// True once the "Save as reusable template?" prompt has been shown for an
+	// unlinked design this session, so it never nags on every save.
+	var savePrompted = false;
+
+	// Persist the active template. `options.newName` triggers a save-as (creates
+	// a linked custom record); otherwise a linked customId updates its record in
+	// place, and an unlinked design saves plainly.
+	function persistTemplate(options) {
+		options = options || {};
 		var status = $('#wp-remote-og-status');
 		var button = $('#wp-remote-og-save-template');
 		// Capture the exact state being persisted at click time. Edits made
 		// while the request is in flight must not be clobbered by the response,
 		// and must not be falsely marked clean.
 		var submitted = ES.clone(state.template);
-		setStatusMessage(status, 'Saving...', 'busy');
-		button.prop('disabled', true).addClass('is-busy');
-		$.post(WPRemoteOG.ajaxUrl, {
+		var payload = {
 			action: 'wp_remote_og_save_template',
 			nonce: WPRemoteOG.nonce,
-			template: submitted
-		}).done(function (response) {
+			template: submitted,
+			custom_id: state.customId || ''
+		};
+		if (options.newName) {
+			payload.custom_name = options.newName;
+		}
+		setStatusMessage(status, 'Saving...', 'busy');
+		button.prop('disabled', true).addClass('is-busy');
+		$.post(WPRemoteOG.ajaxUrl, payload).done(function (response) {
 			if (response.success) {
 				// Never replace the live template with the response: it may be
 				// stale relative to edits made after the Save click. Only adopt
@@ -1306,11 +1320,20 @@
 				// value-based dirty check decide cleanliness.
 				var resolved = ES.resolveSave(submitted, state.template);
 				state.savedSnapshot = resolved.saved;
+				// Adopt any newly created / confirmed custom link and refresh the
+				// shared custom-template list so other views stay in sync.
+				if (response.data && typeof response.data.customId !== 'undefined') {
+					state.customId = response.data.customId;
+					WPRemoteOG.activeCustomId = response.data.customId;
+				}
+				if (response.data && Array.isArray(response.data.customTemplates)) {
+					WPRemoteOG.customTemplates = response.data.customTemplates;
+				}
 				syncDirty();
 				flashDirtyIndicator(WPRemoteOG.strings.savedShort || 'Saved', 'is-saved');
 				renderLayerList();
 				renderCanvas();
-				setStatusMessage(status, WPRemoteOG.strings.saved, 'success');
+				setStatusMessage(status, options.newName ? (WPRemoteOG.strings.templateSaved || WPRemoteOG.strings.saved) : WPRemoteOG.strings.saved, 'success');
 			} else {
 				flashDirtyIndicator(WPRemoteOG.strings.saveError || 'Save failed', 'is-error');
 				setStatusMessage(status, response.data && response.data.message ? response.data.message : 'Unable to save template.', 'error');
@@ -1321,6 +1344,50 @@
 		}).always(function () {
 			button.prop('disabled', false).removeClass('is-busy');
 		});
+	}
+
+	// Open the naming modal pre-filled with a unique default and, on confirm,
+	// save-as under the entered name.
+	function openSaveAsModal() {
+		var strings = (window.WPRemoteOG && WPRemoteOG.strings) || {};
+		var names = (WPRemoteOG.customTemplates || []).map(function (t) { return t.name; });
+		openNameModal({
+			title: strings.saveAsTitle || 'Save as reusable template',
+			desc: strings.saveAsPrompt || '',
+			value: ES.generateDefaultName(names, strings.defaultTemplateName || 'My Template'),
+			confirmLabel: strings.saveAsReusable || 'Save as reusable template',
+			cancelLabel: strings.cancel || 'Cancel',
+			onConfirm: function (name) {
+				persistTemplate({ newName: name });
+			}
+		});
+	}
+
+	function saveTemplate() {
+		// First plain save of an unlinked design: offer to save it as a reusable
+		// template, or just save. Backward compatible: "Just save" is the plain
+		// existing behavior, and the prompt only appears once per session.
+		if (!state.customId && !savePrompted) {
+			savePrompted = true;
+			var strings = (window.WPRemoteOG && WPRemoteOG.strings) || {};
+			var names = (WPRemoteOG.customTemplates || []).map(function (t) { return t.name; });
+			openNameModal({
+				title: strings.saveAsTitle || 'Save as reusable template',
+				desc: strings.saveAsPrompt || '',
+				value: ES.generateDefaultName(names, strings.defaultTemplateName || 'My Template'),
+				confirmLabel: strings.saveAsReusable || 'Save as reusable template',
+				extraLabel: strings.justSave || 'Just save',
+				onConfirm: function (name) {
+					persistTemplate({ newName: name });
+				},
+				onExtra: function () {
+					persistTemplate();
+				},
+				restoreFocusTo: '#wp-remote-og-save-template'
+			});
+			return;
+		}
+		persistTemplate();
 	}
 
 	function refreshPreview() {
@@ -1380,6 +1447,7 @@
 		}
 
 		injectFontFaces();
+		state.customId = WPRemoteOG.activeCustomId || '';
 		state.template = clone(WPRemoteOG.template);
 		if (!state.template.layers) {
 			state.template.layers = [];
@@ -1401,6 +1469,7 @@
 
 		$('#wp-remote-og-add-layer').on('click', addLayer);
 		$('#wp-remote-og-save-template').on('click', saveTemplate);
+		$('#wp-remote-og-save-as-template').on('click', openSaveAsModal);
 		$('#wp-remote-og-background').on('click', selectBackground);
 		$('#wp-remote-og-add-image-layer').on('click', addImageLayer);
 		$('#wp-remote-og-add-horizontal-line').on('click', function () {
@@ -1953,6 +2022,124 @@
 		return canvas;
 	}
 
+	// Shared, accessible name modal (save-as, rename). role=dialog + aria-modal
+	// live in the markup; here we manage focus trap, Escape, and focus restore.
+	var nameModalState = { onConfirm: null, onExtra: null, lastFocused: null, restoreFocusTo: null };
+
+	function nameModalEl() {
+		return $('#wp-remote-og-name-modal');
+	}
+
+	function nameModalFocusables() {
+		return nameModalEl().find('button, input, [href], select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible');
+	}
+
+	function setNameError(message) {
+		$('#wp-remote-og-name-error').text(message || '');
+	}
+
+	function closeNameModal() {
+		var modal = nameModalEl();
+		if (!modal.length || modal.prop('hidden')) {
+			return;
+		}
+		modal.prop('hidden', true);
+		var restore = nameModalState.restoreFocusTo;
+		var last = nameModalState.lastFocused;
+		nameModalState.onConfirm = null;
+		nameModalState.onExtra = null;
+		nameModalState.restoreFocusTo = null;
+		var target = restore ? $(restore).get(0) : last;
+		if (target && target.focus) {
+			target.focus();
+		}
+	}
+
+	function openNameModal(opts) {
+		opts = opts || {};
+		var strings = (window.WPRemoteOG && WPRemoteOG.strings) || {};
+		var modal = nameModalEl();
+		if (!modal.length) {
+			return;
+		}
+		nameModalState.lastFocused = document.activeElement;
+		nameModalState.onConfirm = opts.onConfirm || null;
+		nameModalState.onExtra = opts.onExtra || null;
+		nameModalState.restoreFocusTo = opts.restoreFocusTo || null;
+		$('#wp-remote-og-name-modal-title').text(opts.title || '');
+		$('#wp-remote-og-name-modal-desc').text(opts.desc || '');
+		$('#wp-remote-og-name-confirm').text(opts.confirmLabel || strings.save || 'Save');
+		var cancel = $('#wp-remote-og-name-cancel');
+		cancel.text(opts.onExtra ? (opts.extraLabel || strings.justSave || 'Just save') : (opts.cancelLabel || strings.cancel || 'Cancel'));
+		setNameError('');
+		var input = $('#wp-remote-og-name-input');
+		input.val(opts.value || '');
+		modal.prop('hidden', false);
+		input.trigger('focus');
+		if (input.get(0) && input.get(0).select) {
+			input.get(0).select();
+		}
+	}
+
+	function confirmNameModal() {
+		var strings = (window.WPRemoteOG && WPRemoteOG.strings) || {};
+		var maxLen = (window.WPRemoteOG && WPRemoteOG.maxCustomNameLength) || 100;
+		var check = ES.validateTemplateName($('#wp-remote-og-name-input').val(), maxLen);
+		if (!check.valid) {
+			setNameError('too_long' === check.reason ? (strings.nameTooLong || '') : (strings.nameRequired || ''));
+			$('#wp-remote-og-name-input').trigger('focus');
+			return;
+		}
+		var cb = nameModalState.onConfirm;
+		closeNameModal();
+		if (cb) {
+			cb(check.value);
+		}
+	}
+
+	function initNameModal() {
+		var modal = nameModalEl();
+		if (!modal.length) {
+			return;
+		}
+		$('#wp-remote-og-name-confirm').on('click', confirmNameModal);
+		$('#wp-remote-og-name-input').on('keydown', function (event) {
+			if ('Enter' === event.key) {
+				event.preventDefault();
+				confirmNameModal();
+			}
+		});
+		$('#wp-remote-og-name-cancel').on('click', function () {
+			var extra = nameModalState.onExtra;
+			closeNameModal();
+			if (extra) {
+				extra();
+			}
+		});
+		modal.on('click', '[data-name-close]', function () {
+			closeNameModal();
+		});
+		modal.on('keydown', function (event) {
+			if ('Escape' === event.key) {
+				closeNameModal();
+				return;
+			}
+			if ('Tab' !== event.key) {
+				return;
+			}
+			var focusables = nameModalFocusables();
+			if (!focusables.length) {
+				return;
+			}
+			var activeIndex = focusables.index(document.activeElement);
+			var target = ES.focusTrapTarget(focusables.length, activeIndex, event.shiftKey);
+			if (target > -1) {
+				event.preventDefault();
+				focusables[target].focus();
+			}
+		});
+	}
+
 	function initTemplateGallery() {
 		var gallery = $('#wp-remote-og-gallery');
 		if (!gallery.length || !window.WPRemoteOG || !Array.isArray(WPRemoteOG.presets)) {
@@ -2138,9 +2325,135 @@
 			announceFilter(renderCards());
 		});
 
+		// ---- My Templates (custom, reusable) ----------------------------------
+		var customGallery = $('#wp-remote-og-custom-gallery');
+		var customStatus = $('#wp-remote-og-custom-status');
+
+		function customStatusMsg(message, type) {
+			setStatusMessage(customStatus, message, type);
+		}
+
+		function customById(id) {
+			return (WPRemoteOG.customTemplates || []).filter(function (rec) {
+				return rec.id === id;
+			})[0] || null;
+		}
+
+		function renderCustomCards() {
+			if (!customGallery.length) {
+				return;
+			}
+			customGallery.empty();
+			var list = WPRemoteOG.customTemplates || [];
+			if (!list.length) {
+				$('<p/>', { 'class': 'wpog-custom-empty', text: strings.customEmpty || 'You have not saved any templates yet.' }).appendTo(customGallery);
+				return;
+			}
+			list.forEach(function (rec) {
+				var card = $('<div/>', {
+					'class': 'wp-remote-og-preset-card wp-remote-og-custom-card',
+					'data-id': rec.id,
+					role: 'listitem',
+					'aria-label': rec.name
+				});
+				var thumb = $('<div/>', { 'class': 'wp-remote-og-preset-thumb' });
+				thumb.append(buildPresetPreview(rec.template, 300));
+				card.append(thumb);
+				var body = $('<div/>', { 'class': 'wp-remote-og-preset-body' });
+				$('<h3/>', { 'class': 'wp-remote-og-preset-name', text: rec.name }).appendTo(body);
+				if (rec.updated_at) {
+					$('<span/>', { 'class': 'wp-remote-og-preset-category', text: (strings.updatedLabel || 'Updated') + ' ' + rec.updated_at }).appendTo(body);
+				}
+				var actions = $('<div/>', { 'class': 'wp-remote-og-preset-actions' });
+				$('<button/>', { type: 'button', 'class': 'button', text: strings.preview || 'Preview', 'data-custom-action': 'preview', 'aria-label': (strings.preview || 'Preview') + ' ' + rec.name }).appendTo(actions);
+				$('<button/>', { type: 'button', 'class': 'button button-primary', text: strings.applyEdit || 'Apply & edit', 'data-custom-action': 'apply', 'aria-label': (strings.applyEdit || 'Apply & edit') + ' ' + rec.name }).appendTo(actions);
+				$('<button/>', { type: 'button', 'class': 'button', text: strings.rename || 'Rename', 'data-custom-action': 'rename', 'aria-label': (strings.rename || 'Rename') + ' ' + rec.name }).appendTo(actions);
+				$('<button/>', { type: 'button', 'class': 'button', text: strings.duplicate || 'Duplicate', 'data-custom-action': 'duplicate', 'aria-label': (strings.duplicate || 'Duplicate') + ' ' + rec.name }).appendTo(actions);
+				$('<button/>', { type: 'button', 'class': 'button is-link-danger wpog-danger', text: strings.delete || 'Delete', 'data-custom-action': 'delete', 'aria-label': (strings.delete || 'Delete') + ' ' + rec.name }).appendTo(actions);
+				body.append(actions);
+				card.append(body);
+				customGallery.append(card);
+			});
+		}
+
+		function customPost(action, data, onOk) {
+			customStatusMsg(strings.generating || 'Working…', 'busy');
+			$.post(WPRemoteOG.ajaxUrl, $.extend({ action: action, nonce: WPRemoteOG.nonce }, data)).done(function (response) {
+				if (response && response.success) {
+					if (response.data && Array.isArray(response.data.customTemplates)) {
+						WPRemoteOG.customTemplates = response.data.customTemplates;
+						renderCustomCards();
+					}
+					onOk(response.data || {});
+				} else {
+					customStatusMsg(response && response.data && response.data.message ? response.data.message : (strings.applyFailed || 'Something went wrong.'), 'error');
+				}
+			}).fail(function () {
+				customStatusMsg(strings.applyFailed || 'Something went wrong.', 'error');
+			});
+		}
+
+		function applyCustomTemplate(id, button) {
+			if (!window.confirm(strings.applyConfirm || 'Apply this template?')) {
+				return;
+			}
+			if (button) {
+				button.prop('disabled', true);
+			}
+			customPost('wp_remote_og_apply_custom_template', { id: id }, function () {
+				customStatusMsg(strings.applied || 'Template applied.', 'success');
+				$('.wp-remote-og-restore-notice').prop('hidden', false);
+				closeModal();
+				if (WPRemoteOG.editorUrl) {
+					window.location.href = WPRemoteOG.editorUrl;
+				}
+			});
+		}
+
+		customGallery.on('click', '[data-custom-action]', function () {
+			var id = $(this).closest('.wp-remote-og-custom-card').data('id');
+			var rec = customById(id);
+			if (!rec) {
+				return;
+			}
+			var action = $(this).data('custom-action');
+			if ('preview' === action) {
+				openModal({ name: rec.name, description: '', template: rec.template, customId: rec.id });
+			} else if ('apply' === action) {
+				applyCustomTemplate(id, $(this));
+			} else if ('rename' === action) {
+				openNameModal({
+					title: strings.renamePrompt || 'Rename template',
+					value: rec.name,
+					confirmLabel: strings.save || 'Save',
+					cancelLabel: strings.cancel || 'Cancel',
+					onConfirm: function (name) {
+						customPost('wp_remote_og_rename_custom_template', { id: id, name: name }, function () {
+							customStatusMsg('', '');
+						});
+					}
+				});
+			} else if ('duplicate' === action) {
+				customPost('wp_remote_og_duplicate_custom_template', { id: id }, function () {
+					customStatusMsg('', '');
+				});
+			} else if ('delete' === action) {
+				if (!window.confirm(strings.deleteConfirm || 'Delete this template?')) {
+					return;
+				}
+				customPost('wp_remote_og_delete_custom_template', { id: id }, function () {
+					customStatusMsg('', '');
+				});
+			}
+		});
+
 		modal.on('click', '[data-modal-close]', closeModal);
 		$('#wp-remote-og-preset-apply').on('click', function () {
-			applyPreset(modalPreset, $(this));
+			if (modalPreset && modalPreset.customId) {
+				applyCustomTemplate(modalPreset.customId, $(this));
+			} else {
+				applyPreset(modalPreset, $(this));
+			}
 		});
 		$(document).on('keydown.wpRemoteOgModal', function (event) {
 			if ('Escape' === event.key && !modal.prop('hidden')) {
@@ -2173,9 +2486,11 @@
 		});
 
 		renderCards();
+		renderCustomCards();
 	}
 
 	$(function () {
+		initNameModal();
 		loadGoogleFontCatalog();
 		initEditor();
 		initFields();

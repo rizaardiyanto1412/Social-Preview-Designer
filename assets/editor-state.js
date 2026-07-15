@@ -176,6 +176,71 @@
 	}
 
 	/**
+	 * Decide what a Save should do for the current editor design.
+	 *
+	 * - A non-empty requestedName means "save as": create a new custom record.
+	 * - Else a linked customId means update that record in place (no duplicates).
+	 * - Else it is a plain active-template save.
+	 *
+	 * @param {{customId?:string, requestedName?:string}} opts
+	 * @returns {{mode:string, name?:string, customId?:string}}
+	 */
+	function resolveSaveTarget(opts) {
+		opts = opts || {};
+		var name = null == opts.requestedName ? '' : String(opts.requestedName).trim();
+		if (name) {
+			return { mode: 'create', name: name };
+		}
+		if (opts.customId) {
+			return { mode: 'update', customId: String(opts.customId) };
+		}
+		return { mode: 'plain' };
+	}
+
+	/**
+	 * Validate a custom-template name (mirrors the PHP guard).
+	 *
+	 * @param {string} name
+	 * @param {number} [maxLen=100]
+	 * @returns {{valid:boolean, reason:string, value:string}}
+	 */
+	function validateTemplateName(name, maxLen) {
+		maxLen = maxLen || 100;
+		var trimmed = (null == name ? '' : String(name)).trim();
+		if (!trimmed) {
+			return { valid: false, reason: 'empty', value: '' };
+		}
+		if (trimmed.length > maxLen) {
+			return { valid: false, reason: 'too_long', value: trimmed };
+		}
+		return { valid: true, reason: '', value: trimmed };
+	}
+
+	/**
+	 * Suggest a default template name unique (case-insensitively) against the
+	 * existing names, e.g. "My Template", "My Template 2", "My Template 3".
+	 *
+	 * @param {string[]} existingNames
+	 * @param {string} [base='My Template']
+	 * @returns {string}
+	 */
+	function generateDefaultName(existingNames, base) {
+		base = base || 'My Template';
+		var taken = {};
+		(Array.isArray(existingNames) ? existingNames : []).forEach(function (n) {
+			taken[String(n).trim().toLowerCase()] = true;
+		});
+		if (!taken[base.toLowerCase()]) {
+			return base;
+		}
+		var i = 2;
+		while (taken[(base + ' ' + i).toLowerCase()]) {
+			i++;
+		}
+		return base + ' ' + i;
+	}
+
+	/**
 	 * Collision-aware popover/overflow-menu placement.
 	 *
 	 * Pure geometry helper (DOM-free) so admin.js can measure trigger/menu with
@@ -309,6 +374,9 @@
 		computeResize: computeResize,
 		geometryChanged: geometryChanged,
 		resolveSave: resolveSave,
+		resolveSaveTarget: resolveSaveTarget,
+		validateTemplateName: validateTemplateName,
+		generateDefaultName: generateDefaultName,
 		computeMenuPosition: computeMenuPosition,
 		focusTrapTarget: focusTrapTarget
 	};

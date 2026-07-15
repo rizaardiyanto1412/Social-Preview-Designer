@@ -208,6 +208,132 @@ wp_remote_og_assert( is_array( $restore_result ) && ! empty( $restore_result['te
 wp_remote_og_assert( wp_json_encode( WP_Remote_OG_Plugin::get_template() ) === wp_json_encode( $pre_apply_template ), 'Restoring the backup returns the original pre-preset template.' );
 wp_remote_og_assert( false === get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP, false ), 'Restoring the backup clears the stored backup option.' );
 wp_remote_og_assert( is_wp_error( WP_Remote_OG_Admin::restore_template_backup() ), 'restore_template_backup core errors when no backup exists.' );
+
+// --- My Templates (custom reusable templates) core logic -------------------
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+WP_Remote_OG_Plugin::set_active_custom_id( '' );
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+
+$custom_template_body = array(
+	'background' => array( 'id' => 0, 'url' => '' ),
+	'layers'     => array(
+		array(
+			'id'      => 'ct-title',
+			'type'    => 'text',
+			'content' => '{post_title}',
+			'x'       => 90,
+			'y'       => 90,
+			'width'   => 1020,
+			'height'  => 200,
+			'color'   => '#111827',
+		),
+	),
+);
+
+$create_bad_name = WP_Remote_OG_Admin::create_custom_template( '   ', $custom_template_body );
+wp_remote_og_assert( is_wp_error( $create_bad_name ), 'create_custom_template rejects an empty/whitespace name.' );
+
+$create_long_name = WP_Remote_OG_Admin::create_custom_template( str_repeat( 'x', 101 ), $custom_template_body );
+wp_remote_og_assert( is_wp_error( $create_long_name ), 'create_custom_template rejects a name longer than 100 chars.' );
+
+$created = WP_Remote_OG_Admin::create_custom_template( '  My First Template  ', $custom_template_body );
+wp_remote_og_assert( is_array( $created ) && ! empty( $created['id'] ), 'create_custom_template returns a new record id.' );
+wp_remote_og_assert( 'My First Template' === $created['record']['name'], 'create_custom_template trims the stored name.' );
+$created_id = $created['id'];
+$all_custom = WP_Remote_OG_Plugin::get_custom_templates();
+wp_remote_og_assert( isset( $all_custom[ $created_id ] ), 'The created custom template persists to the option store.' );
+wp_remote_og_assert( wp_json_encode( WP_Remote_OG_Plugin::sanitize_template( $custom_template_body ) ) === wp_json_encode( $all_custom[ $created_id ]['template'] ), 'The stored custom template body is sanitized.' );
+
+// Update in place must never create a duplicate record.
+$count_before_update = count( WP_Remote_OG_Plugin::get_custom_templates() );
+$updated_body = $custom_template_body;
+$updated_body['layers'][0]['content'] = 'Updated content';
+$updated = WP_Remote_OG_Admin::update_custom_template( $created_id, $updated_body );
+wp_remote_og_assert( is_array( $updated ), 'update_custom_template succeeds for an existing id.' );
+wp_remote_og_assert( count( WP_Remote_OG_Plugin::get_custom_templates() ) === $count_before_update, 'update_custom_template updates in place (no duplicate record).' );
+$after_update = WP_Remote_OG_Plugin::get_custom_templates();
+wp_remote_og_assert( 'Updated content' === $after_update[ $created_id ]['template']['layers'][0]['content'], 'update_custom_template replaces the template body.' );
+wp_remote_og_assert( is_wp_error( WP_Remote_OG_Admin::update_custom_template( 'custom-nope', $custom_template_body ) ), 'update_custom_template errors on an unknown id.' );
+
+// Rename.
+$renamed = WP_Remote_OG_Admin::rename_custom_template( $created_id, 'Renamed Template' );
+wp_remote_og_assert( is_array( $renamed ) && 'Renamed Template' === $renamed['record']['name'], 'rename_custom_template updates the name.' );
+wp_remote_og_assert( is_wp_error( WP_Remote_OG_Admin::rename_custom_template( $created_id, '' ) ), 'rename_custom_template rejects an empty name.' );
+
+// Duplicate.
+$dup = WP_Remote_OG_Admin::duplicate_custom_template( $created_id );
+wp_remote_og_assert( is_array( $dup ) && $dup['id'] !== $created_id, 'duplicate_custom_template creates a new record with a new id.' );
+wp_remote_og_assert( count( WP_Remote_OG_Plugin::get_custom_templates() ) === 2, 'duplicate_custom_template adds exactly one record.' );
+$dup_id = $dup['id'];
+
+// apply_custom_template sets the active template AND the active custom id.
+$applied_custom = WP_Remote_OG_Admin::apply_custom_template( $created_id );
+wp_remote_og_assert( is_array( $applied_custom ) && ! empty( $applied_custom['template'] ), 'apply_custom_template returns the applied template.' );
+wp_remote_og_assert( WP_Remote_OG_Plugin::get_active_custom_id() === $created_id, 'apply_custom_template links the active custom id.' );
+
+// Applying a built-in preset must CLEAR the active custom id.
+WP_Remote_OG_Admin::apply_preset( $presets[0]['key'] );
+wp_remote_og_assert( '' === WP_Remote_OG_Plugin::get_active_custom_id(), 'Applying a built-in preset clears the active custom id.' );
+
+// Re-link, then save the active template through save_active_template with the
+// link: it must update the linked record in place and not duplicate.
+WP_Remote_OG_Admin::apply_custom_template( $created_id );
+$count_before_save = count( WP_Remote_OG_Plugin::get_custom_templates() );
+$linked_body = $custom_template_body;
+$linked_body['layers'][0]['content'] = 'Saved via editor';
+$saved_linked = WP_Remote_OG_Admin::save_active_template( $linked_body, $created_id, '' );
+wp_remote_og_assert( is_array( $saved_linked ) && $saved_linked['customId'] === $created_id, 'save_active_template keeps the active custom link.' );
+wp_remote_og_assert( count( WP_Remote_OG_Plugin::get_custom_templates() ) === $count_before_save, 'save_active_template updates the linked record without duplicating.' );
+$after_linked_save = WP_Remote_OG_Plugin::get_custom_templates();
+wp_remote_og_assert( 'Saved via editor' === $after_linked_save[ $created_id ]['template']['layers'][0]['content'], 'save_active_template writes editor edits into the linked record.' );
+
+// save_active_template with a new name creates a record and links it.
+$count_before_saveas = count( WP_Remote_OG_Plugin::get_custom_templates() );
+$saved_as = WP_Remote_OG_Admin::save_active_template( $custom_template_body, '', 'Saved As Name' );
+wp_remote_og_assert( is_array( $saved_as ) && ! empty( $saved_as['customId'] ), 'save_active_template with a new name creates and links a record.' );
+wp_remote_og_assert( count( WP_Remote_OG_Plugin::get_custom_templates() ) === $count_before_saveas + 1, 'save-as adds exactly one record.' );
+wp_remote_og_assert( WP_Remote_OG_Plugin::get_active_custom_id() === $saved_as['customId'], 'save-as links the newly created id as active.' );
+
+// Deleting the active-linked record keeps the active template intact and unlinks.
+WP_Remote_OG_Admin::apply_custom_template( $created_id );
+$active_before_delete = wp_json_encode( WP_Remote_OG_Plugin::get_template() );
+$deleted = WP_Remote_OG_Admin::delete_custom_template( $created_id );
+wp_remote_og_assert( is_array( $deleted ), 'delete_custom_template succeeds for an existing id.' );
+wp_remote_og_assert( ! isset( WP_Remote_OG_Plugin::get_custom_templates()[ $created_id ] ), 'delete_custom_template removes the record.' );
+wp_remote_og_assert( '' === WP_Remote_OG_Plugin::get_active_custom_id(), 'Deleting the active-linked record unlinks the active custom id.' );
+wp_remote_og_assert( wp_json_encode( WP_Remote_OG_Plugin::get_template() ) === $active_before_delete, 'Deleting the active-linked record never destroys the active template design.' );
+wp_remote_og_assert( is_wp_error( WP_Remote_OG_Admin::delete_custom_template( 'custom-nope' ) ), 'delete_custom_template errors on an unknown id.' );
+
+// Size guard: a template whose serialized record exceeds the byte limit is rejected.
+$huge_body = $custom_template_body;
+$huge_body['layers'][0]['content'] = str_repeat( 'A', WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_BYTES + 1000 );
+$huge = WP_Remote_OG_Admin::create_custom_template( 'Too Big', $huge_body );
+wp_remote_og_assert( is_wp_error( $huge ), 'create_custom_template rejects a record over the serialized size guard.' );
+
+// Count limit: filling to MAX_CUSTOM_TEMPLATES rejects further creates.
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+$limit = WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES;
+for ( $i = 0; $i < $limit; $i++ ) {
+	WP_Remote_OG_Admin::create_custom_template( 'Bulk ' . $i, $custom_template_body );
+}
+wp_remote_og_assert( count( WP_Remote_OG_Plugin::get_custom_templates() ) === $limit, 'Custom template store fills to the configured maximum.' );
+$over_limit = WP_Remote_OG_Admin::create_custom_template( 'One Too Many', $custom_template_body );
+wp_remote_og_assert( is_wp_error( $over_limit ), 'create_custom_template rejects creation beyond the maximum count.' );
+
+// Templates page renders both sections; uninstall removes the new options.
+ob_start();
+WP_Remote_OG_Admin::render_templates_page();
+$templates_html_custom = ob_get_clean();
+wp_remote_og_assert( false !== strpos( $templates_html_custom, 'wp-remote-og-custom-gallery' ), 'Templates page renders the My Templates gallery container.' );
+wp_remote_og_assert( false !== strpos( $templates_html_custom, 'wp-remote-og-name-modal' ), 'Templates page renders the accessible name modal.' );
+$uninstall_source = file_get_contents( dirname( __DIR__ ) . '/uninstall.php' );
+wp_remote_og_assert( false !== strpos( $uninstall_source, 'wp_remote_og_custom_templates' ), 'Uninstall removes the custom templates option.' );
+wp_remote_og_assert( false !== strpos( $uninstall_source, 'wp_remote_og_active_custom_id' ), 'Uninstall removes the active custom id option.' );
+
+update_option( WP_Remote_OG_Plugin::OPTION_CUSTOM_TEMPLATES, array() );
+WP_Remote_OG_Plugin::set_active_custom_id( '' );
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+
 $admin_css = file_get_contents( dirname( __DIR__ ) . '/assets/admin.css' );
 wp_remote_og_assert( (bool) preg_match( '/\.wp-remote-og-layer-text\s*\{[^}]*width:\s*100%;/s', $admin_css ), 'Editor preview text span fills the layer width for alignment.' );
 $plugin_source = file_get_contents( dirname( __DIR__ ) . '/wp-remote-og-plugins.php' );
