@@ -2978,21 +2978,65 @@ final class WP_Remote_OG_Admin {
 	}
 
 	/**
+	 * Per-request memo of computed asset versions, keyed by relative path.
+	 *
+	 * @var array<string,string>
+	 */
+	private static $asset_version_cache = array();
+
+	/**
+	 * Content hash for a file, or a fallback string when it cannot be read.
+	 *
+	 * Pure helper: no globals, no memoization, no path leakage. Given the same
+	 * file contents it always returns the same short hash; any byte change
+	 * yields a different hash. If the file is missing or hashing fails it
+	 * returns $fallback (the plugin version). Kept static/public so tests can
+	 * exercise it directly against temp files.
+	 *
+	 * @param string $path     Absolute filesystem path to the asset.
+	 * @param string $fallback Version string to use when hashing is impossible.
+	 * @return string Bare 12-char hex hash, or $fallback.
+	 */
+	public static function asset_content_version( $path, $fallback ) {
+		if ( ! is_string( $path ) || '' === $path || ! is_readable( $path ) ) {
+			return $fallback;
+		}
+
+		$hash = hash_file( 'sha256', $path );
+		if ( ! is_string( $hash ) || '' === $hash ) {
+			return $fallback;
+		}
+
+		return substr( $hash, 0, 12 );
+	}
+
+	/**
 	 * Version string for a bundled asset.
 	 *
-	 * Deterministic: keyed on the plugin version constant rather than the file
-	 * modification time. filemtime is environment-dependent (it varies between
-	 * servers, deploys, and CDN origins for identical bytes), which produces
-	 * inconsistent cache keys across a multi-origin/CDN setup. Bumping
-	 * WP_REMOTE_OG_VERSION on release busts caches predictably for everyone.
+	 * Deterministic and CONTENT-BASED: the version is a short hash of the file's
+	 * bytes, so identical content always produces the same cache key across
+	 * servers/deploys/CDN origins (unlike filemtime), while any change to the
+	 * file busts caches automatically without a manual version bump. Falls back
+	 * to WP_REMOTE_OG_VERSION if the file is unreadable. Memoized per request so
+	 * each asset is hashed at most once. The returned string is the bare hash
+	 * (or version) only — never the filesystem path.
 	 *
-	 * @param string $relative_path Path relative to the plugin directory (unused,
-	 *                              kept for call-site clarity).
+	 * @param string $relative_path Path relative to the plugin directory.
 	 * @return string
 	 */
 	private static function asset_version( $relative_path ) {
-		unset( $relative_path );
-		return WP_REMOTE_OG_VERSION;
+		if ( isset( self::$asset_version_cache[ $relative_path ] ) ) {
+			return self::$asset_version_cache[ $relative_path ];
+		}
+
+		$version = self::asset_content_version(
+			WP_REMOTE_OG_DIR . ltrim( $relative_path, '/' ),
+			WP_REMOTE_OG_VERSION
+		);
+
+		self::$asset_version_cache[ $relative_path ] = $version;
+
+		return $version;
 	}
 
 	public static function enqueue_assets( $hook ) {

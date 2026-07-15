@@ -873,6 +873,50 @@ foreach ( array( $post_id, $fallback_post, $page_id ) as $wp_remote_og_cleanup_p
 	}
 }
 
+// --- Content-based asset versioning ---------------------------------------
+$wp_remote_og_asset_tmp = tempnam( sys_get_temp_dir(), 'wprog_asset_' );
+file_put_contents( $wp_remote_og_asset_tmp, "console.log('v1');\n" );
+
+$wp_remote_og_asset_v1  = WP_Remote_OG_Plugin::asset_content_version( $wp_remote_og_asset_tmp, WP_REMOTE_OG_VERSION );
+$wp_remote_og_asset_v1b = WP_Remote_OG_Plugin::asset_content_version( $wp_remote_og_asset_tmp, WP_REMOTE_OG_VERSION );
+wp_remote_og_assert( $wp_remote_og_asset_v1 === $wp_remote_og_asset_v1b, 'asset_content_version is deterministic for identical content.' );
+wp_remote_og_assert( 12 === strlen( $wp_remote_og_asset_v1 ), 'asset_content_version returns a 12-char short hash.' );
+wp_remote_og_assert( ctype_xdigit( $wp_remote_og_asset_v1 ), 'asset_content_version returns a bare hex hash (no path leakage).' );
+wp_remote_og_assert( '1.0.0' !== $wp_remote_og_asset_v1, 'asset_content_version does not fall back to the plugin version for a readable file.' );
+
+file_put_contents( $wp_remote_og_asset_tmp, "console.log('v2 changed');\n" );
+$wp_remote_og_asset_v2 = WP_Remote_OG_Plugin::asset_content_version( $wp_remote_og_asset_tmp, WP_REMOTE_OG_VERSION );
+wp_remote_og_assert( $wp_remote_og_asset_v1 !== $wp_remote_og_asset_v2, 'Changed file content produces a different asset version.' );
+@unlink( $wp_remote_og_asset_tmp );
+
+$wp_remote_og_asset_missing = sys_get_temp_dir() . '/wprog-does-not-exist-' . uniqid() . '.js';
+wp_remote_og_assert(
+	WP_REMOTE_OG_VERSION === WP_Remote_OG_Plugin::asset_content_version( $wp_remote_og_asset_missing, WP_REMOTE_OG_VERSION ),
+	'Missing asset falls back to the plugin version constant.'
+);
+
+// Enqueue-level assertion: registered handles carry the content hash, not ver=1.0.0.
+global $wp_scripts, $wp_styles, $current_screen;
+$wp_remote_og_prev_screen = $current_screen;
+set_current_screen( 'toplevel_page_wp-remote-og' );
+WP_Remote_OG_Plugin::enqueue_assets( 'toplevel_page_wp-remote-og' );
+
+$wp_remote_og_enqueue_checks = array(
+	array( $wp_styles, 'wp-remote-og-admin', 'assets/admin.css' ),
+	array( $wp_scripts, 'wp-remote-og-editor-state', 'assets/editor-state.js' ),
+	array( $wp_scripts, 'wp-remote-og-admin', 'assets/admin.js' ),
+);
+foreach ( $wp_remote_og_enqueue_checks as $wp_remote_og_check ) {
+	list( $wp_remote_og_registry, $wp_remote_og_handle, $wp_remote_og_rel ) = $wp_remote_og_check;
+	$wp_remote_og_expected = WP_Remote_OG_Plugin::asset_content_version( WP_REMOTE_OG_DIR . $wp_remote_og_rel, WP_REMOTE_OG_VERSION );
+	$wp_remote_og_registered = isset( $wp_remote_og_registry->registered[ $wp_remote_og_handle ] ) ? $wp_remote_og_registry->registered[ $wp_remote_og_handle ]->ver : null;
+	wp_remote_og_assert( '1.0.0' !== $wp_remote_og_registered, sprintf( 'Enqueued %s is not stuck at ver=1.0.0.', $wp_remote_og_rel ) );
+	wp_remote_og_assert( $wp_remote_og_expected === $wp_remote_og_registered, sprintf( 'Enqueued %s version matches its content hash.', $wp_remote_og_rel ) );
+}
+if ( $wp_remote_og_prev_screen ) {
+	$current_screen = $wp_remote_og_prev_screen;
+}
+
 $result = $GLOBALS['wp_remote_og_test_results'];
 echo "=================================\n";
 echo 'Passed: ' . $result['passed'] . "\n";
