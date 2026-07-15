@@ -402,16 +402,36 @@
 		}
 	}
 
+	// Build the {exists, hidden, visible} tri-state for a selector-addressed
+	// overlay. Critically, an ABSENT element (empty jQuery set) reports
+	// exists:false so it never counts as "open" — the old `!$el.prop('hidden')`
+	// read undefined -> true for overlays not rendered on the editor screen.
+	function overlayElementState(selector) {
+		var $el = $(selector);
+		return {
+			exists: $el.length > 0,
+			hidden: !!$el.prop('hidden'),
+			visible: $el.length > 0 && $el.is(':visible')
+		};
+	}
+
 	// Is something layered above the editor that legitimately owns Escape? If so
-	// Escape must dismiss THAT, not tear down fullscreen.
+	// Escape must dismiss THAT, not tear down fullscreen. Only truly open,
+	// visible overlays block; missing overlays (preset modal is not on the editor
+	// page) do not.
 	function isBlockingOverlayOpen() {
-		var nameModalOpen = !$('#wp-remote-og-name-modal').prop('hidden');
-		var presetModalOpen = !$('#wp-remote-og-preset-modal').prop('hidden');
-		var mediaOpen = !!(state.mediaFrame && state.mediaFrame.$el && state.mediaFrame.$el.is(':visible'));
-		var popoverOpen = $('.wpog-overflow-menu').filter(function () {
-			return !$(this).prop('hidden');
-		}).length > 0;
-		return nameModalOpen || presetModalOpen || mediaOpen || popoverOpen;
+		var media = state.mediaFrame && state.mediaFrame.$el ? state.mediaFrame.$el : null;
+		var $openMenus = $('.wpog-overflow-menu').filter(function () {
+			var $m = $(this);
+			return !$m.prop('hidden') && $m.is(':visible');
+		});
+		var overlays = [
+			overlayElementState('#wp-remote-og-name-modal'),
+			overlayElementState('#wp-remote-og-preset-modal'),
+			{ exists: !!media, hidden: false, visible: !!(media && media.is(':visible')) },
+			{ exists: $openMenus.length > 0, hidden: false, visible: $openMenus.length > 0 }
+		];
+		return ES.isOverlayBlocking(overlays);
 	}
 
 	function syncDistractionButton() {
@@ -1849,10 +1869,16 @@
 			var openWrap = $('.wpog-overflow').filter(function () {
 				return !$(this).find('.wpog-overflow-menu').prop('hidden');
 			}).first();
-			closeOverflowMenus();
-			if (openWrap.length) {
-				openWrap.find('[data-overflow-toggle]').trigger('focus');
+			if (!openWrap.length) {
+				// Nothing to close: let this Escape flow through to other handlers
+				// (e.g. exiting distraction-free mode).
+				return;
 			}
+			// This Escape closes the popover; consume it so it does not ALSO tear
+			// down distraction-free mode in the same keypress (two-Escape rule).
+			event.stopImmediatePropagation();
+			closeOverflowMenus();
+			openWrap.find('[data-overflow-toggle]').trigger('focus');
 		});
 	}
 
@@ -2252,6 +2278,9 @@
 		});
 		modal.on('keydown', function (event) {
 			if ('Escape' === event.key) {
+				// Consume the Escape that closes the modal so it does not also exit
+				// distraction-free mode in the same keypress (two-Escape rule).
+				event.stopPropagation();
 				closeNameModal();
 				return;
 			}

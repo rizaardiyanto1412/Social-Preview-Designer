@@ -216,6 +216,23 @@
 		return !!ctrl.active && !blockingOverlayOpen;
 	}
 
+	/**
+	 * Does any overlay actually block Escape from reaching the distraction-free
+	 * controller? An overlay blocks ONLY when it exists, is not [hidden], and is
+	 * visible. This is the crux of the editor-page bug: some overlays (e.g. the
+	 * preset modal) are not rendered on the editor screen at all, so a naive
+	 * "!element.hidden" check on an absent element read as "open" and jammed
+	 * Escape permanently. An absent overlay MUST NOT block.
+	 *
+	 * @param {Array<{exists:boolean, hidden:boolean, visible:boolean}>} overlays
+	 * @returns {boolean}
+	 */
+	function isOverlayBlocking(overlays) {
+		return (overlays || []).some(function (o) {
+			return !!o && !!o.exists && !o.hidden && !!o.visible;
+		});
+	}
+
 	function distractionAriaPressed(active) {
 		return active ? 'true' : 'false';
 	}
@@ -621,6 +638,7 @@
 		distractionEnter: distractionEnter,
 		distractionExit: distractionExit,
 		distractionShouldExitOnEscape: distractionShouldExitOnEscape,
+		isOverlayBlocking: isOverlayBlocking,
 		distractionAriaPressed: distractionAriaPressed,
 		distractionLabels: distractionLabels,
 		clone: clone,
