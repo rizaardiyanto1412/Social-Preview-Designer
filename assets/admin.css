@@ -1089,6 +1089,23 @@
 	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
+/* My Templates: compact, left-aligned card grid consistent with Built-in
+   Templates. auto-fill + a capped max track (never 1fr stretch) means a single
+   card keeps a normal card width and never spans the full row; multiple cards
+   wrap into equal-width columns. justify-content:start left-aligns the tracks. */
+.wp-remote-og-custom-gallery {
+	display: grid;
+	gap: 18px;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 300px));
+	justify-content: start;
+}
+
+@media (max-width: 600px) {
+	.wp-remote-og-custom-gallery {
+		grid-template-columns: 1fr;
+	}
+}
+
 .wp-remote-og-preset-card {
 	background: var(--wpog-panel);
 	border: 1px solid var(--wpog-border);
@@ -1113,22 +1130,105 @@
 	padding: 16px;
 }
 
+/* Custom thumbnails are full-bleed (no inner padding) so the real preview fills
+   the card width, matching the built-in thumbnail footprint. */
 .wp-remote-og-custom-thumb {
-	align-items: center;
-	min-height: 120px;
+	padding: 0;
 }
 
-.wp-remote-og-custom-thumb-initial {
+/* Reserved aspect-ratio box (1200:630) so the preview never causes layout shift
+   while its body lazily loads. Overflow is clipped so previews and popovers can
+   never bleed out of the card. */
+.wp-remote-og-custom-thumb-frame {
+	aspect-ratio: 1200 / 630;
+	background: var(--wpog-muted);
+	overflow: hidden;
+	position: relative;
+	width: 100%;
+}
+
+.wp-remote-og-custom-thumb-canvas {
+	inset: 0;
+	position: absolute;
+}
+
+.wp-remote-og-custom-thumb-canvas .wp-remote-og-preview-canvas {
+	border-radius: 0;
+	box-shadow: none;
+}
+
+.wp-remote-og-custom-thumb-overlay {
 	align-items: center;
-	background: var(--wpog-border);
-	border-radius: 50%;
-	color: #475569;
-	display: flex;
-	font-size: 32px;
-	font-weight: 600;
-	height: 72px;
+	background: var(--wpog-muted);
+	display: none;
+	flex-direction: column;
+	gap: 8px;
+	inset: 0;
 	justify-content: center;
-	width: 72px;
+	position: absolute;
+	text-align: center;
+}
+
+.wp-remote-og-custom-thumb-frame.is-loading .wp-remote-og-custom-thumb-overlay,
+.wp-remote-og-custom-thumb-frame.is-error .wp-remote-og-custom-thumb-overlay {
+	display: flex;
+}
+
+.wp-remote-og-custom-thumb-frame.is-loading .wp-remote-og-custom-thumb-overlay {
+	background: linear-gradient(100deg, var(--wpog-muted) 30%, var(--wpog-border) 50%, var(--wpog-muted) 70%);
+	background-size: 200% 100%;
+	animation: wpog-thumb-shimmer 1.4s ease-in-out infinite;
+}
+
+.wpog-thumb-error-text,
+.wpog-thumb-retry {
+	display: none;
+}
+
+.wp-remote-og-custom-thumb-frame.is-error .wpog-thumb-loading-text {
+	display: none;
+}
+
+.wp-remote-og-custom-thumb-frame.is-error .wpog-thumb-error-text,
+.wp-remote-og-custom-thumb-frame.is-error .wpog-thumb-retry {
+	display: inline-block;
+}
+
+.wpog-thumb-error-text {
+	color: var(--wpog-muted, #64748b);
+	font-size: 12.5px;
+}
+
+.wp-remote-og-thumb-spinner {
+	border: 3px solid var(--wpog-border);
+	border-radius: 50%;
+	border-top-color: var(--wpog-accent);
+	height: 26px;
+	width: 26px;
+	animation: wpog-thumb-spin 0.8s linear infinite;
+}
+
+.wp-remote-og-custom-thumb-frame.is-error .wp-remote-og-thumb-spinner {
+	display: none;
+}
+
+@keyframes wpog-thumb-spin {
+	to { transform: rotate(360deg); }
+}
+
+@keyframes wpog-thumb-shimmer {
+	0% { background-position: 200% 0; }
+	100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wp-remote-og-thumb-spinner {
+		animation: none;
+	}
+	.wp-remote-og-custom-thumb-frame.is-loading .wp-remote-og-custom-thumb-overlay {
+		animation: none;
+		background: var(--wpog-muted);
+	}
 }
 
 .wp-remote-og-preview-canvas {

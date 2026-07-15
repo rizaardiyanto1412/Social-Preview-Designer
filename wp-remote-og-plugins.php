@@ -3110,6 +3110,11 @@ final class WP_Remote_OG_Admin {
 					'deleteConfirm' => __( 'Delete this template? This cannot be undone. Your current editor design is not affected.', 'wp-remote-og-plugins' ),
 					'save'          => __( 'Save', 'wp-remote-og-plugins' ),
 					'updatedLabel'  => __( 'Updated', 'wp-remote-og-plugins' ),
+					'thumbLoading'  => __( 'Loading preview…', 'wp-remote-og-plugins' ),
+					'thumbError'    => __( 'Preview unavailable', 'wp-remote-og-plugins' ),
+					'thumbRetry'    => __( 'Retry', 'wp-remote-og-plugins' ),
+					/* translators: %s: template name. */
+					'thumbAlt'      => __( 'Preview of %s', 'wp-remote-og-plugins' ),
 					'builtInHeading' => __( 'Built-in Templates', 'wp-remote-og-plugins' ),
 					'myTemplatesHeading' => __( 'My Templates', 'wp-remote-og-plugins' ),
 					'distractionFree' => __( 'Distraction-free', 'wp-remote-og-plugins' ),

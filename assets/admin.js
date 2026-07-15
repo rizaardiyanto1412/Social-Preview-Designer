@@ -2499,29 +2499,218 @@
 			})[0] || null;
 		}
 
+		// ---- Lazy thumbnail pipeline for My Templates -------------------------
+		// Boot/list payloads are metadata-only (no template bodies), so each card's
+		// real preview is fetched on demand through the single-template endpoint,
+		// with an in-memory cache, bounded concurrency, and IntersectionObserver so
+		// only visible cards fetch. The preview is rendered by buildPresetPreview —
+		// the SAME authoritative renderer the big Preview modal uses — so a gallery
+		// thumbnail can never drift from what Preview/apply shows.
+		var thumbStore = ES.createThumbStore({ concurrency: 3 });
+		var thumbIdByKey = {};
+		var thumbQueue = [];
+		var thumbObserver = null;
+
+		function thumbAltFor(name) {
+			var tpl = strings.thumbAlt || 'Preview of %s';
+			return tpl.replace('%s', name || '');
+		}
+
+		function desiredThumbKeys() {
+			return (WPRemoteOG.customTemplates || []).map(function (rec) {
+				return ES.thumbVersionKey(rec.id, rec.updated_at);
+			});
+		}
+
+		function thumbKeyIsDesired(key) {
+			return desiredThumbKeys().indexOf(key) !== -1;
+		}
+
+		function framesForKey(key) {
+			return customGallery.find('.wp-remote-og-custom-thumb-frame').filter(function () {
+				return $(this).data('thumbKey') === key;
+			});
+		}
+
+		// Render a template body into a frame's inert canvas. buildPresetPreview
+		// escapes all user text (jQuery .text()) and only sets geometry/known style
+		// props, so no user HTML is ever injected. Width is measured so the preview
+		// fills the reserved aspect-ratio box responsively.
+		function paintFrameBody(frame, template) {
+			var canvas = frame.find('.wp-remote-og-custom-thumb-canvas');
+			var width = Math.round(frame.innerWidth()) || 268;
+			canvas.empty().append(buildPresetPreview(template, width));
+		}
+
+		function showThumbState(frame, state) {
+			frame.removeClass('is-loading is-error');
+			if ('loading' === state) {
+				frame.addClass('is-loading').attr('aria-busy', 'true');
+			} else if ('error' === state) {
+				frame.addClass('is-error').removeAttr('aria-busy');
+			} else {
+				frame.removeAttr('aria-busy');
+			}
+		}
+
+		function paintThumbKey(key) {
+			var body = ES.thumbGetCached(thumbStore, key);
+			framesForKey(key).each(function () {
+				var frame = $(this);
+				paintFrameBody(frame, body);
+				showThumbState(frame, 'ready');
+			});
+		}
+
+		function markThumbError(key) {
+			framesForKey(key).each(function () {
+				showThumbState($(this), 'error');
+			});
+		}
+
+		function startThumbFetch(key) {
+			var id = thumbIdByKey[key];
+			if (!id) {
+				return;
+			}
+			ES.thumbBeginFetch(thumbStore, key);
+			framesForKey(key).each(function () { showThumbState($(this), 'loading'); });
+			$.post(WPRemoteOG.ajaxUrl, {
+				action: 'wp_remote_og_get_custom_template',
+				nonce: WPRemoteOG.nonce,
+				id: id
+			}).done(function (response) {
+				var record = response && response.success && response.data ? response.data.record : null;
+				if (record && record.template) {
+					if (ES.thumbResolveSuccess(thumbStore, key, record.template, thumbKeyIsDesired(key))) {
+						paintThumbKey(key);
+					}
+				} else if (ES.thumbResolveError(thumbStore, key, thumbKeyIsDesired(key))) {
+					markThumbError(key);
+				}
+				pumpThumbs();
+			}).fail(function () {
+				if (ES.thumbResolveError(thumbStore, key, thumbKeyIsDesired(key))) {
+					markThumbError(key);
+				}
+				pumpThumbs();
+			});
+		}
+
+		function pumpThumbs() {
+			while (thumbQueue.length && ES.thumbCanStart(thumbStore)) {
+				var key = thumbQueue.shift();
+				if (!ES.thumbShouldFetch(thumbStore, key)) {
+					continue;
+				}
+				startThumbFetch(key);
+			}
+		}
+
+		function enqueueThumbFrame(frame) {
+			var key = frame.data('thumbKey');
+			if (!key) {
+				return;
+			}
+			if (ES.thumbGetCached(thumbStore, key)) {
+				paintThumbKey(key);
+				return;
+			}
+			if (!ES.thumbShouldFetch(thumbStore, key)) {
+				return;
+			}
+			if (thumbQueue.indexOf(key) === -1) {
+				thumbQueue.push(key);
+			}
+			pumpThumbs();
+		}
+
+		function ensureThumbObserver() {
+			if (thumbObserver || typeof IntersectionObserver === 'undefined') {
+				return;
+			}
+			thumbObserver = new IntersectionObserver(function (entries) {
+				entries.forEach(function (entry) {
+					if (entry.isIntersecting) {
+						thumbObserver.unobserve(entry.target);
+						enqueueThumbFrame($(entry.target));
+					}
+				});
+			}, { rootMargin: '200px 0px' });
+		}
+
+		function buildThumbFrame(rec, key, priorBody) {
+			var frame = $('<div/>', {
+				'class': 'wp-remote-og-custom-thumb-frame is-loading',
+				role: 'img',
+				'aria-label': thumbAltFor(rec.name),
+				'aria-busy': 'true'
+			});
+			frame.data('thumbKey', key);
+			$('<div/>', { 'class': 'wp-remote-og-custom-thumb-canvas' }).appendTo(frame);
+			var overlay = $('<div/>', { 'class': 'wp-remote-og-custom-thumb-overlay' });
+			$('<span/>', { 'class': 'wp-remote-og-thumb-spinner', 'aria-hidden': 'true' }).appendTo(overlay);
+			$('<span/>', { 'class': 'wpog-thumb-loading-text screen-reader-text', text: strings.thumbLoading || 'Loading preview…' }).appendTo(overlay);
+			$('<span/>', { 'class': 'wpog-thumb-error-text', text: strings.thumbError || 'Preview unavailable' }).appendTo(overlay);
+			$('<button/>', { type: 'button', 'class': 'button button-small wpog-thumb-retry', text: strings.thumbRetry || 'Retry', 'aria-label': (strings.thumbRetry || 'Retry') + ' — ' + thumbAltFor(rec.name) }).appendTo(overlay);
+			frame.append(overlay);
+			// Anti-flash: if a prior version of this record is still cached (e.g. a
+			// rename that only bumps updated_at), paint it immediately so the card
+			// never blinks back to a skeleton while the identical body refetches.
+			if (priorBody) {
+				paintFrameBody(frame, priorBody);
+			}
+			return frame;
+		}
+
 		function renderCustomCards() {
 			if (!customGallery.length) {
 				return;
 			}
+
+			// Snapshot prior bodies by id BEFORE pruning so a re-render can reuse a
+			// previous preview as an anti-flash placeholder for the same record.
+			var priorById = {};
+			Object.keys(thumbStore.cache).forEach(function (k) {
+				priorById[k.split('@')[0]] = thumbStore.cache[k];
+			});
+
+			var keys = desiredThumbKeys();
+			// Drop cache/status for records that are gone or now a different version
+			// (delete/update churn) so nothing leaks or paints a stale card.
+			ES.thumbPrune(thumbStore, keys);
+
+			if (thumbObserver) {
+				thumbObserver.disconnect();
+			}
 			customGallery.empty();
+			thumbQueue = [];
+			thumbIdByKey = {};
+
 			var list = WPRemoteOG.customTemplates || [];
 			if (!list.length) {
 				$('<p/>', { 'class': 'wpog-custom-empty', text: strings.customEmpty || 'You have not saved any templates yet.' }).appendTo(customGallery);
 				return;
 			}
+
+			ensureThumbObserver();
+
 			list.forEach(function (rec) {
+				var key = ES.thumbVersionKey(rec.id, rec.updated_at);
+				thumbIdByKey[key] = rec.id;
+
 				var card = $('<div/>', {
 					'class': 'wp-remote-og-preset-card wp-remote-og-custom-card',
 					'data-id': rec.id,
 					role: 'listitem',
 					'aria-label': rec.name
 				});
-				// Boot/mutation payloads carry metadata only (no template body), so
-				// the card shows a lightweight placeholder; the full design is fetched
-				// on demand when the user previews or applies it.
+
 				var thumb = $('<div/>', { 'class': 'wp-remote-og-preset-thumb wp-remote-og-custom-thumb' });
-				$('<span/>', { 'class': 'wp-remote-og-custom-thumb-initial', text: (rec.name || '?').trim().charAt(0).toUpperCase() || '?' }).appendTo(thumb);
+				var frame = buildThumbFrame(rec, key, priorById[rec.id]);
+				thumb.append(frame);
 				card.append(thumb);
+
 				var body = $('<div/>', { 'class': 'wp-remote-og-preset-body' });
 				$('<h3/>', { 'class': 'wp-remote-og-preset-name', text: rec.name }).appendTo(body);
 				if (rec.updated_at) {
@@ -2536,8 +2725,32 @@
 				body.append(actions);
 				card.append(body);
 				customGallery.append(card);
+
+				// Cached (ready) previews paint synchronously; otherwise defer the
+				// fetch until the card scrolls near the viewport (or immediately when
+				// IntersectionObserver is unavailable).
+				if (ES.thumbGetCached(thumbStore, key)) {
+					paintThumbKey(key);
+				} else if (thumbObserver) {
+					thumbObserver.observe(frame.get(0));
+				} else {
+					enqueueThumbFrame(frame);
+				}
 			});
 		}
+
+		// Retry a failed thumbnail without touching the rest of the gallery.
+		customGallery.on('click', '.wpog-thumb-retry', function (event) {
+			event.stopPropagation();
+			var frame = $(this).closest('.wp-remote-og-custom-thumb-frame');
+			var key = frame.data('thumbKey');
+			if (!key) {
+				return;
+			}
+			ES.thumbRetry(thumbStore, key);
+			showThumbState(frame, 'loading');
+			enqueueThumbFrame(frame);
+		});
 
 		function customPost(action, data, onOk) {
 			customStatusMsg(strings.generating || 'Working…', 'busy');

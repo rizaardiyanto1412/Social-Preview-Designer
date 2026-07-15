@@ -607,6 +607,126 @@
 	}
 
 	/**
+	 * Lazy thumbnail store for the My Templates gallery.
+	 *
+	 * Boot/list payloads are metadata-only, so each custom card must fetch its
+	 * template body on demand to render a real preview. This pure store owns the
+	 * cache + in-flight bookkeeping + concurrency budget so admin.js only wires
+	 * the DOM/AJAX and Node can exercise the race/cache/invalidation semantics.
+	 *
+	 * Entries are keyed by a *version key* (id @ updated_at). Because the key
+	 * encodes the record's version, an in-place update (updated_at changes)
+	 * produces a fresh key that misses the cache and refetches, while a rename
+	 * that leaves the body untouched renders identically. The DOM layer decides
+	 * whether a resolving fetch is still "desired" (a card with that exact key is
+	 * on screen), which is the authoritative guard against painting the wrong /
+	 * a deleted card — stale, superseded and deleted fetches are dropped.
+	 */
+	function createThumbStore(opts) {
+		opts = opts || {};
+		var c = opts.concurrency;
+		return {
+			concurrency: (typeof c === 'number' && c > 0) ? c : 3,
+			cache: {},   // versionKey -> template body (rendered previews)
+			status: {},  // versionKey -> 'loading' | 'ready' | 'error'
+			active: 0    // number of fetches currently in flight
+		};
+	}
+
+	/**
+	 * The cache/version key for a record: id @ updated_at. A changed body bumps
+	 * updated_at server-side, so the key changes and the old preview is not reused.
+	 */
+	function thumbVersionKey(id, version) {
+		return String(id == null ? '' : id) + '@' + String(version == null ? '' : version);
+	}
+
+	/** A ready, cached preview body for the key (or null). */
+	function thumbGetCached(store, key) {
+		return Object.prototype.hasOwnProperty.call(store.cache, key) ? store.cache[key] : null;
+	}
+
+	/**
+	 * Should this key be fetched now? No when already cached (ready) or currently
+	 * loading, or parked in the error state (error clears only via explicit retry,
+	 * so a failed card does not hammer the server on every re-render).
+	 */
+	function thumbShouldFetch(store, key) {
+		if (Object.prototype.hasOwnProperty.call(store.cache, key)) {
+			return false;
+		}
+		var s = store.status[key];
+		return s !== 'loading' && s !== 'error';
+	}
+
+	/** Is there spare concurrency budget to start another fetch? */
+	function thumbCanStart(store) {
+		return store.active < store.concurrency;
+	}
+
+	/** Mark a key as loading and consume one concurrency slot. */
+	function thumbBeginFetch(store, key) {
+		store.status[key] = 'loading';
+		store.active += 1;
+	}
+
+	/**
+	 * Resolve a successful body fetch. Frees the concurrency slot. Only caches and
+	 * reports paintable (`true`) when the key is still `desired` (a card with this
+	 * exact version key is on screen); a superseded/deleted key is dropped so it
+	 * never paints a wrong or gone card.
+	 */
+	function thumbResolveSuccess(store, key, template, desired) {
+		if (store.status[key] === 'loading') {
+			store.active = Math.max(0, store.active - 1);
+		}
+		if (!desired) {
+			delete store.status[key];
+			return false;
+		}
+		store.cache[key] = template;
+		store.status[key] = 'ready';
+		return true;
+	}
+
+	/** Resolve a failed fetch. Frees the slot; parks the key in `error` when still desired. */
+	function thumbResolveError(store, key, desired) {
+		if (store.status[key] === 'loading') {
+			store.active = Math.max(0, store.active - 1);
+		}
+		if (!desired) {
+			delete store.status[key];
+			return false;
+		}
+		store.status[key] = 'error';
+		return true;
+	}
+
+	/** Clear an error so the key becomes fetchable again (Retry). */
+	function thumbRetry(store, key) {
+		if (store.status[key] === 'error') {
+			delete store.status[key];
+		}
+	}
+
+	/**
+	 * Drop cache/status entries whose key is no longer present (delete/update/
+	 * duplicate churn), so the store can never grow unbounded or leak the body of
+	 * a deleted template. In-flight (`loading`) entries are retained until they
+	 * resolve so their concurrency slot is released correctly.
+	 */
+	function thumbPrune(store, keepKeys) {
+		var keep = {};
+		(keepKeys || []).forEach(function (k) { keep[k] = true; });
+		Object.keys(store.cache).forEach(function (k) {
+			if (!keep[k]) { delete store.cache[k]; }
+		});
+		Object.keys(store.status).forEach(function (k) {
+			if (!keep[k] && store.status[k] !== 'loading') { delete store.status[k]; }
+		});
+	}
+
+	/**
 	 * Focus-trap wrap target for a Tab / Shift+Tab press inside a modal.
 	 *
 	 * Given the number of focusable elements, the index of the currently
@@ -657,6 +777,16 @@
 		generateDefaultName: generateDefaultName,
 		computeMenuPosition: computeMenuPosition,
 		resolveMenuPlacement: resolveMenuPlacement,
-		focusTrapTarget: focusTrapTarget
+		focusTrapTarget: focusTrapTarget,
+		createThumbStore: createThumbStore,
+		thumbVersionKey: thumbVersionKey,
+		thumbGetCached: thumbGetCached,
+		thumbShouldFetch: thumbShouldFetch,
+		thumbCanStart: thumbCanStart,
+		thumbBeginFetch: thumbBeginFetch,
+		thumbResolveSuccess: thumbResolveSuccess,
+		thumbResolveError: thumbResolveError,
+		thumbRetry: thumbRetry,
+		thumbPrune: thumbPrune
 	};
 });
