@@ -515,7 +515,8 @@
 
 		var canvas = $('#wp-remote-og-canvas');
 		var stage = $('#wp-remote-og-layer-stage');
-		canvas.css('background-image', state.template.background && state.template.background.url ? 'url("' + state.template.background.url + '")' : '');
+		var canvasBgUrl = state.template.background ? ES.safeHttpUrl(state.template.background.url) : '';
+		canvas.css('background-image', canvasBgUrl ? 'url("' + canvasBgUrl + '")' : '');
 		stage.empty();
 
 		state.template.layers.forEach(function (layer) {
@@ -2148,6 +2149,19 @@
 			return canvas;
 		}
 
+		// Background image. safeHttpUrl only returns plain http(s) URLs with no
+		// quotes/parens/backslashes/whitespace, so the url("…") interpolation
+		// below cannot be broken out of. Non-URL/dynamic backgrounds fall back to
+		// the canvas base colour.
+		var backgroundUrl = template.background ? ES.safeHttpUrl(template.background.url) : '';
+		if (backgroundUrl) {
+			canvas.css({
+				backgroundImage: 'url("' + backgroundUrl + '")',
+				backgroundSize: 'cover',
+				backgroundPosition: 'center'
+			});
+		}
+
 		template.layers.forEach(function (layer) {
 			var node = $('<div/>', {
 				'class': 'wp-remote-og-preview-layer'
@@ -2161,7 +2175,32 @@
 			if ('line' === layer.type) {
 				node.css('background', layer.color || '#111827');
 			} else if ('image' === layer.type) {
-				node.addClass('is-image-placeholder');
+				// A static, uploaded image (content is a plain http(s) URL and not a
+				// dynamic-field token) renders as a real <img> honoring fit + shape;
+				// a dynamic/token or unsafe URL keeps the inert placeholder. The img
+				// is built via jQuery attrs (never an HTML string) and fails silently
+				// to the placeholder styling behind it if the URL 404s.
+				var isToken = 'string' === typeof layer.content && layer.content.indexOf('{') !== -1;
+				var imageUrl = isToken ? '' : ES.safeHttpUrl(layer.content);
+				if (imageUrl) {
+					node.addClass('wpog-preview-image is-image-placeholder')
+						.addClass('wpog-preview-image-shape-' + imageShape(layer))
+						.addClass('wpog-preview-image-fit-' + imageFit(layer));
+					$('<img/>', {
+						'class': 'wpog-preview-image-content',
+						src: imageUrl,
+						alt: '',
+						'aria-hidden': 'true'
+					}).on('load', function () {
+						// Image painted: drop the hatch so it does not show through.
+						node.removeClass('is-image-placeholder');
+					}).on('error', function () {
+						// Broken URL: remove the img and keep the inert placeholder.
+						$(this).remove();
+					}).appendTo(node);
+				} else {
+					node.addClass('is-image-placeholder');
+				}
 			} else {
 				node.css({
 					color: layer.color || '#111827',

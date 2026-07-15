@@ -1251,6 +1251,38 @@
 	border-radius: 4px;
 }
 
+/* Real static-image layers in a preview: the <img> fills the layer box and is
+   clipped to the layer's shape; object-fit mirrors the editor's fit semantics. */
+.wp-remote-og-preview-layer.wpog-preview-image {
+	overflow: hidden;
+}
+
+.wpog-preview-image-content {
+	display: block;
+	height: 100%;
+	width: 100%;
+}
+
+.wpog-preview-image-fit-contain .wpog-preview-image-content {
+	object-fit: contain;
+}
+
+.wpog-preview-image-fit-cover .wpog-preview-image-content {
+	object-fit: cover;
+}
+
+.wpog-preview-image-fit-stretch .wpog-preview-image-content {
+	object-fit: fill;
+}
+
+.wp-remote-og-preview-layer.wpog-preview-image-shape-rounded {
+	border-radius: 6px;
+}
+
+.wp-remote-og-preview-layer.wpog-preview-image-shape-circle {
+	border-radius: 50%;
+}
+
 .wp-remote-og-preset-body {
 	display: flex;
 	flex: 1 1 auto;

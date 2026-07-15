@@ -292,6 +292,65 @@ test('JS: text is rendered as text (XSS-safe) — buildPresetPreview never injec
 	assert.ok(!/\.html\(/.test(body), 'no raw .html() sink for user content');
 });
 
+test('safeHttpUrl: allows only plain http(s) URLs, rejects injection vectors', () => {
+	// Accepts ordinary http/https (case-insensitive scheme), trims surrounding ws.
+	assert.strictEqual(ES.safeHttpUrl('https://cdn.example.com/a.png'), 'https://cdn.example.com/a.png');
+	assert.strictEqual(ES.safeHttpUrl('http://example.com/i.jpg'), 'http://example.com/i.jpg');
+	assert.strictEqual(ES.safeHttpUrl('HTTPS://Example.com/x.png'), 'HTTPS://Example.com/x.png');
+	assert.strictEqual(ES.safeHttpUrl('  https://example.com/x.png  '), 'https://example.com/x.png');
+	// Rejects dangerous schemes.
+	assert.strictEqual(ES.safeHttpUrl('javascript:alert(1)'), '');
+	assert.strictEqual(ES.safeHttpUrl('data:image/png;base64,AAAA'), '');
+	assert.strictEqual(ES.safeHttpUrl('vbscript:msgbox(1)'), '');
+	assert.strictEqual(ES.safeHttpUrl('//protocol-relative.example.com/x'), '');
+	assert.strictEqual(ES.safeHttpUrl('/relative/path.png'), '');
+	// Rejects strings that could break out of url("…") / an attribute.
+	assert.strictEqual(ES.safeHttpUrl('https://e.com/x").png'), '', 'double quote');
+	assert.strictEqual(ES.safeHttpUrl("https://e.com/x').png"), '', 'single quote');
+	assert.strictEqual(ES.safeHttpUrl('https://e.com/(x).png'), '', 'parentheses');
+	assert.strictEqual(ES.safeHttpUrl('https://e.com/a\\b.png'), '', 'backslash');
+	assert.strictEqual(ES.safeHttpUrl('https://e.com/<b>.png'), '', 'angle bracket');
+	assert.strictEqual(ES.safeHttpUrl('https://e.com/a b.png'), '', 'whitespace');
+	assert.strictEqual(ES.safeHttpUrl('https://e.com/a\nb.png'), '', 'newline');
+	// Non-strings / empty.
+	assert.strictEqual(ES.safeHttpUrl(null), '');
+	assert.strictEqual(ES.safeHttpUrl(undefined), '');
+	assert.strictEqual(ES.safeHttpUrl(123), '');
+	assert.strictEqual(ES.safeHttpUrl(''), '');
+});
+
+test('JS: preview renders background + static images through the safe URL helper', () => {
+	const fn = ADMIN_JS.match(/function buildPresetPreview\([\s\S]*?\n\t\}/)[0];
+	// Background is gated by safeHttpUrl and only then interpolated into url("…").
+	assert.ok(/template\.background[\s\S]*?ES\.safeHttpUrl\(/.test(fn), 'background url is validated');
+	assert.ok(/backgroundImage:\s*'url\("'\s*\+\s*backgroundUrl\s*\+\s*'"\)'/.test(fn),
+		'validated background url is interpolated (never a raw value)');
+	// Static image layers: token content stays a placeholder; a safe URL becomes
+	// a real <img> built via jQuery attrs (no HTML string) honoring fit/shape.
+	assert.ok(/indexOf\('\{'\)\s*!==\s*-1/.test(fn), 'dynamic-field token detection');
+	assert.ok(/imageUrl\s*=\s*isToken\s*\?\s*''\s*:\s*ES\.safeHttpUrl\(layer\.content\)/.test(fn),
+		'token content is never treated as a URL');
+	assert.ok(/wpog-preview-image-shape-'\s*\+\s*imageShape\(layer\)/.test(fn), 'honors image_shape');
+	assert.ok(/wpog-preview-image-fit-'\s*\+\s*imageFit\(layer\)/.test(fn), 'honors image_fit');
+	assert.ok(/\$\('<img\/>',\s*\{/.test(fn) && !/\.html\(/.test(fn), 'img built via attrs, no html sink');
+	// A broken URL must fail silently back to the placeholder.
+	assert.ok(/\.on\('error'/.test(fn), 'broken image URL fails silently to the placeholder');
+});
+
+test('JS: the editor canvas background is hardened with the same URL helper (no naive url interpolation)', () => {
+	// The reference naive pattern must be gone; the helper gates the value.
+	assert.ok(!/'url\("'\s*\+\s*state\.template\.background\.url/.test(ADMIN_JS),
+		'renderCanvas no longer interpolates the raw background url');
+	assert.ok(/canvasBgUrl\s*=\s*state\.template\.background\s*\?\s*ES\.safeHttpUrl\(/.test(ADMIN_JS),
+		'renderCanvas validates the background url via safeHttpUrl');
+});
+
+test('CSS: preview image fit/shape classes exist so thumbnails match editor semantics', () => {
+	assert.ok(/\.wpog-preview-image-fit-cover \.wpog-preview-image-content\s*\{[^}]*object-fit:\s*cover/.test(ADMIN_CSS));
+	assert.ok(/\.wpog-preview-image-fit-contain \.wpog-preview-image-content\s*\{[^}]*object-fit:\s*contain/.test(ADMIN_CSS));
+	assert.ok(/\.wpog-preview-image-shape-circle\s*\{[^}]*border-radius:\s*50%/.test(ADMIN_CSS));
+});
+
 test('JS: accessible thumbnail — role=img, alt/aria-label, aria-busy, and a Retry control', () => {
 	assert.ok(/role:\s*'img'/.test(ADMIN_JS), 'thumb frame is an image role');
 	assert.ok(/thumbAltFor\(rec\.name\)/.test(ADMIN_JS), 'thumb carries a descriptive aria-label');

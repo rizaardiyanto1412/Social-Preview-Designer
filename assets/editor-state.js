@@ -607,6 +607,37 @@
 	}
 
 	/**
+	 * Validate a value as a plain http(s) URL that is safe to place inside a CSS
+	 * url("…") context or an <img src>. Returns the trimmed URL or '' when it is
+	 * not obviously safe.
+	 *
+	 * This is deliberately strict (allow-list, not sanitize): it rejects anything
+	 * that is not http/https, and any string containing quotes, parentheses,
+	 * angle brackets, backslashes, or whitespace/control characters — the exact
+	 * bytes that could break out of a url("…") wrapper or an attribute and inject
+	 * markup/CSS. So javascript:, data:, vbscript:, protocol-relative and
+	 * quote/paren-bearing strings all return ''. Callers fall back to an inert
+	 * placeholder when this returns ''.
+	 */
+	function safeHttpUrl(value) {
+		if (typeof value !== 'string') {
+			return '';
+		}
+		var url = value.trim();
+		if (!url) {
+			return '';
+		}
+		// eslint-disable-next-line no-control-regex
+		if (/["'()\\<>\s\x00-\x1f]/.test(url)) {
+			return '';
+		}
+		if (!/^https?:\/\//i.test(url)) {
+			return '';
+		}
+		return url;
+	}
+
+	/**
 	 * Lazy thumbnail store for the My Templates gallery.
 	 *
 	 * Boot/list payloads are metadata-only, so each custom card must fetch its
@@ -778,6 +809,7 @@
 		computeMenuPosition: computeMenuPosition,
 		resolveMenuPlacement: resolveMenuPlacement,
 		focusTrapTarget: focusTrapTarget,
+		safeHttpUrl: safeHttpUrl,
 		createThumbStore: createThumbStore,
 		thumbVersionKey: thumbVersionKey,
 		thumbGetCached: thumbGetCached,
