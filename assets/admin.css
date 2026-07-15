@@ -1341,11 +1341,15 @@
 	border-radius: var(--wpog-radius-sm);
 	box-shadow: var(--wpog-shadow-lg);
 	min-width: 220px;
+	max-width: calc(100vw - 24px);
 	padding: 6px;
 	position: absolute;
 	right: 0;
 	top: calc(100% + 6px);
-	z-index: 1000;
+	/* Sit above the WP admin sidebar (z-index 9990) and match the plugin's other
+	   overlays (canvas dropdown 100000, modal 100010). JS upgrades this to
+	   position:fixed with collision-aware coordinates on open. */
+	z-index: 100000;
 }
 
 .wpog-overflow-menu[hidden] {

@@ -176,6 +176,107 @@
 	}
 
 	/**
+	 * Collision-aware popover/overflow-menu placement.
+	 *
+	 * Pure geometry helper (DOM-free) so admin.js can measure trigger/menu with
+	 * getBoundingClientRect and delegate the flip/clamp math here, and Node tests
+	 * can exercise the exact same logic. All rects are expressed in viewport
+	 * coordinates (as returned by getBoundingClientRect); callers apply the result
+	 * with position:fixed so page scroll needs no extra bookkeeping.
+	 *
+	 * opts:
+	 *  - triggerRect: { left, right, top, bottom, width?, height? }
+	 *  - menuSize:    { width, height }
+	 *  - viewport:    { width, height }
+	 *  - boundaryRect?: { left, top, right, bottom } content area to stay inside
+	 *  - gap?:        px between trigger and menu (default 6)
+	 *  - margin?:     px inset from the boundary edges (default 8)
+	 *
+	 * Returns { left, top, alignRight, alignLeft, openUp, openDown }.
+	 * Default placement is right-aligned + opening downward (matching the current
+	 * CSS); it flips horizontally when the right-aligned menu would clip past the
+	 * left boundary, flips vertically when there is not enough room below and more
+	 * room above, then clamps the final coordinates inside the boundary.
+	 */
+	function computeMenuPosition(opts) {
+		opts = opts || {};
+		var trigger = opts.triggerRect || {};
+		var menu = opts.menuSize || {};
+		var viewport = opts.viewport || {};
+		var gap = typeof opts.gap === 'number' ? opts.gap : 6;
+		var margin = typeof opts.margin === 'number' ? opts.margin : 8;
+
+		var menuW = menu.width || 0;
+		var menuH = menu.height || 0;
+		var vpW = viewport.width || 0;
+		var vpH = viewport.height || 0;
+
+		var boundary = opts.boundaryRect || { left: 0, top: 0, right: vpW, bottom: vpH };
+		var minLeft = boundary.left + margin;
+		var maxRight = boundary.right - margin;
+		var minTop = boundary.top + margin;
+		var maxBottom = boundary.bottom - margin;
+
+		var tLeft = trigger.left || 0;
+		var tRight = typeof trigger.right === 'number' ? trigger.right : tLeft + (trigger.width || 0);
+		var tTop = trigger.top || 0;
+		var tBottom = typeof trigger.bottom === 'number' ? trigger.bottom : tTop + (trigger.height || 0);
+
+		// Horizontal: prefer aligning the menu's right edge with the trigger's.
+		var rightAlignedLeft = tRight - menuW;
+		var alignRight = true;
+		var left = rightAlignedLeft;
+		if (rightAlignedLeft < minLeft) {
+			// Right-aligned menu would clip past the left edge; flip to left-align.
+			alignRight = false;
+			left = tLeft;
+		}
+
+		// Clamp horizontally inside the boundary.
+		var maxLeft = maxRight - menuW;
+		if (maxLeft < minLeft) {
+			maxLeft = minLeft;
+		}
+		if (left > maxLeft) {
+			left = maxLeft;
+		}
+		if (left < minLeft) {
+			left = minLeft;
+		}
+
+		// Vertical: prefer opening downward, flip up when it fits better.
+		var openUp = false;
+		var top = tBottom + gap;
+		var spaceBelow = maxBottom - (tBottom + gap);
+		var spaceAbove = (tTop - gap) - minTop;
+		if (menuH > spaceBelow && spaceAbove > spaceBelow) {
+			openUp = true;
+			top = tTop - gap - menuH;
+		}
+
+		// Clamp vertically inside the boundary.
+		var maxTop = maxBottom - menuH;
+		if (maxTop < minTop) {
+			maxTop = minTop;
+		}
+		if (top > maxTop) {
+			top = maxTop;
+		}
+		if (top < minTop) {
+			top = minTop;
+		}
+
+		return {
+			left: Math.round(left),
+			top: Math.round(top),
+			alignRight: alignRight,
+			alignLeft: !alignRight,
+			openUp: openUp,
+			openDown: !openUp
+		};
+	}
+
+	/**
 	 * Focus-trap wrap target for a Tab / Shift+Tab press inside a modal.
 	 *
 	 * Given the number of focusable elements, the index of the currently
@@ -208,6 +309,7 @@
 		computeResize: computeResize,
 		geometryChanged: geometryChanged,
 		resolveSave: resolveSave,
+		computeMenuPosition: computeMenuPosition,
 		focusTrapTarget: focusTrapTarget
 	};
 });

@@ -1521,6 +1521,46 @@
 		state.ready = true;
 	}
 
+	// The overflow menu currently open (its trigger + menu jQuery objects), so we
+	// can reposition it on scroll/resize. Cleared when all menus close.
+	var openOverflow = null;
+
+	// Collision-aware placement: measure the trigger and menu in viewport
+	// coordinates and delegate the flip/clamp math to the pure ES helper, then
+	// pin the menu with position:fixed so it never clips under the WP admin
+	// sidebar or off the edge of the screen.
+	function positionOverflowMenu(toggle, menu) {
+		var el = menu.get(0);
+		if (!el || !toggle.get(0)) {
+			return;
+		}
+		// Clear any prior fixed placement so the menu measures at its natural size.
+		el.style.left = '';
+		el.style.top = '';
+		el.style.right = 'auto';
+		el.style.position = 'fixed';
+
+		var triggerRect = toggle.get(0).getBoundingClientRect();
+		var menuRect = el.getBoundingClientRect();
+		var pos = ES.computeMenuPosition({
+			triggerRect: triggerRect,
+			menuSize: { width: menuRect.width, height: menuRect.height },
+			viewport: { width: window.innerWidth, height: window.innerHeight }
+		});
+
+		el.style.left = pos.left + 'px';
+		el.style.top = pos.top + 'px';
+		el.style.right = 'auto';
+		menu.toggleClass('is-open-up', pos.openUp);
+		menu.toggleClass('is-align-left', pos.alignLeft);
+	}
+
+	function repositionOpenOverflow() {
+		if (openOverflow && !openOverflow.menu.prop('hidden')) {
+			positionOverflowMenu(openOverflow.toggle, openOverflow.menu);
+		}
+	}
+
 	function closeOverflowMenus(except) {
 		$('.wpog-overflow').each(function () {
 			if (except && this === except) {
@@ -1529,6 +1569,9 @@
 			$(this).find('.wpog-overflow-menu').prop('hidden', true);
 			$(this).find('[data-overflow-toggle]').attr('aria-expanded', 'false');
 		});
+		if (!except) {
+			openOverflow = null;
+		}
 	}
 
 	function overflowMenuItems(menu) {
@@ -1546,8 +1589,20 @@
 			menu.prop('hidden', !willOpen);
 			$(this).attr('aria-expanded', willOpen ? 'true' : 'false');
 			if (willOpen) {
+				openOverflow = { toggle: $(this), menu: menu };
+				positionOverflowMenu($(this), menu);
 				overflowMenuItems(menu).first().trigger('focus');
+			} else {
+				openOverflow = null;
 			}
+		});
+		// Keep the open menu pinned to its trigger, and close it if the layout
+		// shifts dramatically, matching native menu behavior.
+		$(window).on('resize.wpRemoteOgOverflow scroll.wpRemoteOgOverflow', function () {
+			repositionOpenOverflow();
+		});
+		$(document).on('scroll.wpRemoteOgOverflow', '.wpog-panel, .wpog-workspace', function () {
+			repositionOpenOverflow();
 		});
 		$(document).on('keydown', '[data-overflow-toggle]', function (event) {
 			if ('ArrowDown' === event.key || 'ArrowUp' === event.key) {
