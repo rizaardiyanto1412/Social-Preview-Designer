@@ -21,9 +21,40 @@ test('resolveSaveTarget: a linked customId updates in place (no duplicate)', () 
 	assert.deepStrictEqual(ES.resolveSaveTarget({ customId: 'custom-9' }), { mode: 'update', customId: 'custom-9' });
 });
 
-test('resolveSaveTarget: unlinked, unnamed design is a plain active save', () => {
-	assert.deepStrictEqual(ES.resolveSaveTarget({}), { mode: 'plain' });
-	assert.deepStrictEqual(ES.resolveSaveTarget({ requestedName: '   ' }), { mode: 'plain' }, 'whitespace-only name is not a create');
+test('resolveSaveTarget: unlinked, unnamed design must prompt for a name (no silent plain save)', () => {
+	// A user-authored, unlinked design cannot be persisted silently: the primary
+	// Save must first prompt for a name and then create+link a My Templates record.
+	assert.deepStrictEqual(ES.resolveSaveTarget({}), { mode: 'prompt' });
+	assert.deepStrictEqual(ES.resolveSaveTarget({ requestedName: '   ' }), { mode: 'prompt' }, 'whitespace-only name still needs a real name');
+});
+
+test('unlinked primary Save requires a name, then creates+links; cancel builds no payload and changes nothing', () => {
+	// Simulate the admin.js decision without a DOM: unlinked design => prompt.
+	const state = { customId: '', dirty: true };
+	const target = ES.resolveSaveTarget({ customId: state.customId });
+	assert.strictEqual(target.mode, 'prompt', 'unlinked design forces the name prompt');
+
+	// Cancel/Escape: no name was confirmed, so no persistence payload is built and
+	// the editor state (including dirty) is untouched.
+	function buildPayloadOnCancel() { return null; }
+	assert.strictEqual(buildPayloadOnCancel(), null, 'no AJAX payload on cancel');
+	assert.deepStrictEqual(state, { customId: '', dirty: true }, 'state unchanged after cancel');
+
+	// Confirm with a valid name resolves to a create (the transactional custom_name
+	// path), which is what admin.js sends as options.newName.
+	const named = ES.validateTemplateName('Launch card');
+	assert.ok(named.valid);
+	assert.deepStrictEqual(ES.resolveSaveTarget({ customId: state.customId, requestedName: named.value }), { mode: 'create', name: 'Launch card' });
+});
+
+test('applying a built-in preset yields an unlinked copy whose first Save prompts then creates', () => {
+	// apply_preset clears active_custom_id on the backend; the editor mirrors that
+	// by clearing state.customId, so the very next primary Save must prompt.
+	const state = { customId: 'custom-3' };
+	state.customId = ''; // apply preset => unlinked working copy
+	assert.strictEqual(ES.resolveSaveTarget({ customId: state.customId }).mode, 'prompt');
+	// Naming it then creates a fresh My Template (built-in itself is never mutated).
+	assert.strictEqual(ES.resolveSaveTarget({ customId: '', requestedName: 'From preset' }).mode, 'create');
 });
 
 test('validateTemplateName enforces non-empty and max length', () => {

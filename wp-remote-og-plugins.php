@@ -3048,7 +3048,9 @@ final class WP_Remote_OG_Admin {
 					'saveAsPrompt'  => __( 'Give this template a name so you can reuse it later.', 'wp-remote-og-plugins' ),
 					'nameLabel'     => __( 'Template name', 'wp-remote-og-plugins' ),
 					'saveAsReusable' => __( 'Save as reusable template', 'wp-remote-og-plugins' ),
-					'justSave'      => __( 'Just save', 'wp-remote-og-plugins' ),
+					'saveCopyTitle' => __( 'Save a copy', 'wp-remote-og-plugins' ),
+					'saveCopyPrompt' => __( 'Give the copy a name. Your current template stays as it is.', 'wp-remote-og-plugins' ),
+					'saveCopy'      => __( 'Save a copy', 'wp-remote-og-plugins' ),
 					'cancel'        => __( 'Cancel', 'wp-remote-og-plugins' ),
 					'defaultTemplateName' => __( 'My Template', 'wp-remote-og-plugins' ),
 					'nameRequired'  => __( 'Please enter a template name.', 'wp-remote-og-plugins' ),
@@ -3771,7 +3773,7 @@ final class WP_Remote_OG_Admin {
 					<div class="wpog-overflow" data-overflow>
 						<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'More actions', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'More actions', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'more' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
 						<div class="wpog-overflow-menu" hidden>
-							<button type="button" class="wpog-overflow-item" id="wp-remote-og-save-as-template"><?php esc_html_e( 'Save as reusable template…', 'wp-remote-og-plugins' ); ?></button>
+							<button type="button" class="wpog-overflow-item" id="wp-remote-og-save-as-template" hidden><?php esc_html_e( 'Save a copy…', 'wp-remote-og-plugins' ); ?></button>
 							<button type="button" class="wpog-overflow-item" id="wp-remote-og-background"><?php esc_html_e( 'Select background image', 'wp-remote-og-plugins' ); ?></button>
 							<a class="wpog-overflow-item" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export template (JSON)', 'wp-remote-og-plugins' ); ?></a>
 							<form class="wp-remote-og-import-template wpog-overflow-import" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" enctype="multipart/form-data">

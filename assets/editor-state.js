@@ -176,11 +176,14 @@
 	}
 
 	/**
-	 * Decide what a Save should do for the current editor design.
+	 * Decide what a primary Save should do for the current editor design.
 	 *
-	 * - A non-empty requestedName means "save as": create a new custom record.
+	 * - A non-empty requestedName means "save as": create a new custom record
+	 *   (used by the name modal's confirm and by "Save a copy…" of a linked design).
 	 * - Else a linked customId means update that record in place (no duplicates).
-	 * - Else it is a plain active-template save.
+	 * - Else the design is unlinked and unnamed: the caller MUST prompt for a name
+	 *   before it can persist, so there is one obvious Save that always lands in
+	 *   My Templates. There is no silent plain-save path for a user-authored design.
 	 *
 	 * @param {{customId?:string, requestedName?:string}} opts
 	 * @returns {{mode:string, name?:string, customId?:string}}
@@ -194,7 +197,7 @@
 		if (opts.customId) {
 			return { mode: 'update', customId: String(opts.customId) };
 		}
-		return { mode: 'plain' };
+		return { mode: 'prompt' };
 	}
 
 	/**

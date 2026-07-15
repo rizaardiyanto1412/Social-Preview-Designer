@@ -1286,13 +1286,10 @@
 		state.mediaFrame.open();
 	}
 
-	// True once the "Save as reusable template?" prompt has been shown for an
-	// unlinked design this session, so it never nags on every save.
-	var savePrompted = false;
-
 	// Persist the active template. `options.newName` triggers a save-as (creates
 	// a linked custom record); otherwise a linked customId updates its record in
-	// place, and an unlinked design saves plainly.
+	// place. Callers never invoke this for an unlinked, unnamed design: saveTemplate
+	// prompts for a name first so there is no silent plain-save path in the UI.
 	function persistTemplate(options) {
 		options = options || {};
 		var status = $('#wp-remote-og-status');
@@ -1325,6 +1322,7 @@
 				if (response.data && typeof response.data.customId !== 'undefined') {
 					state.customId = response.data.customId;
 					WPRemoteOG.activeCustomId = response.data.customId;
+					updateSaveCopyVisibility();
 				}
 				if (response.data && Array.isArray(response.data.customTemplates)) {
 					WPRemoteOG.customTemplates = response.data.customTemplates;
@@ -1346,45 +1344,54 @@
 		});
 	}
 
-	// Open the naming modal pre-filled with a unique default and, on confirm,
-	// save-as under the entered name.
-	function openSaveAsModal() {
+	// Open the accessible naming modal pre-filled with a unique default. On
+	// confirm it save-as under the entered name (create + link); on cancel/Escape
+	// nothing is persisted and focus returns to the Save button, leaving the
+	// design's dirty state untouched.
+	function openNamePrompt(promptOpts) {
+		promptOpts = promptOpts || {};
 		var strings = (window.WPRemoteOG && WPRemoteOG.strings) || {};
 		var names = (WPRemoteOG.customTemplates || []).map(function (t) { return t.name; });
 		openNameModal({
-			title: strings.saveAsTitle || 'Save as reusable template',
-			desc: strings.saveAsPrompt || '',
+			title: promptOpts.title || strings.saveAsTitle || 'Save as reusable template',
+			desc: promptOpts.desc || strings.saveAsPrompt || '',
 			value: ES.generateDefaultName(names, strings.defaultTemplateName || 'My Template'),
-			confirmLabel: strings.saveAsReusable || 'Save as reusable template',
+			confirmLabel: promptOpts.confirmLabel || strings.save || 'Save',
 			cancelLabel: strings.cancel || 'Cancel',
+			restoreFocusTo: promptOpts.restoreFocusTo || '#wp-remote-og-save-template',
 			onConfirm: function (name) {
 				persistTemplate({ newName: name });
 			}
 		});
 	}
 
+	// Overflow "Save a copy…" (only shown for a linked design): create a brand
+	// new My Templates record from the current design and link the active editor
+	// to that copy. Uses the same transactional custom_name create path.
+	function saveCopy() {
+		var strings = (window.WPRemoteOG && WPRemoteOG.strings) || {};
+		openNamePrompt({
+			title: strings.saveCopyTitle || 'Save a copy',
+			desc: strings.saveCopyPrompt || strings.saveAsPrompt || '',
+			confirmLabel: strings.saveCopy || 'Save a copy',
+			restoreFocusTo: '#wp-remote-og-save-as-template'
+		});
+	}
+
+	// Show the overflow "Save a copy…" item only for a linked design; an unlinked
+	// design's primary Save already creates the first record, so a copy is
+	// meaningless (and would risk a confusing second obvious save path).
+	function updateSaveCopyVisibility() {
+		$('#wp-remote-og-save-as-template').prop('hidden', !state.customId);
+	}
+
 	function saveTemplate() {
-		// First plain save of an unlinked design: offer to save it as a reusable
-		// template, or just save. Backward compatible: "Just save" is the plain
-		// existing behavior, and the prompt only appears once per session.
-		if (!state.customId && !savePrompted) {
-			savePrompted = true;
-			var strings = (window.WPRemoteOG && WPRemoteOG.strings) || {};
-			var names = (WPRemoteOG.customTemplates || []).map(function (t) { return t.name; });
-			openNameModal({
-				title: strings.saveAsTitle || 'Save as reusable template',
-				desc: strings.saveAsPrompt || '',
-				value: ES.generateDefaultName(names, strings.defaultTemplateName || 'My Template'),
-				confirmLabel: strings.saveAsReusable || 'Save as reusable template',
-				extraLabel: strings.justSave || 'Just save',
-				onConfirm: function (name) {
-					persistTemplate({ newName: name });
-				},
-				onExtra: function () {
-					persistTemplate();
-				},
-				restoreFocusTo: '#wp-remote-og-save-template'
-			});
+		// One obvious primary Save. An unlinked, unnamed design must be named and
+		// created in My Templates (no silent plain save); a linked design updates
+		// its record in place.
+		var target = ES.resolveSaveTarget({ customId: state.customId });
+		if ('prompt' === target.mode) {
+			openNamePrompt({ restoreFocusTo: '#wp-remote-og-save-template' });
 			return;
 		}
 		persistTemplate();
@@ -1469,7 +1476,8 @@
 
 		$('#wp-remote-og-add-layer').on('click', addLayer);
 		$('#wp-remote-og-save-template').on('click', saveTemplate);
-		$('#wp-remote-og-save-as-template').on('click', openSaveAsModal);
+		$('#wp-remote-og-save-as-template').on('click', saveCopy);
+		updateSaveCopyVisibility();
 		$('#wp-remote-og-background').on('click', selectBackground);
 		$('#wp-remote-og-add-image-layer').on('click', addImageLayer);
 		$('#wp-remote-og-add-horizontal-line').on('click', function () {
