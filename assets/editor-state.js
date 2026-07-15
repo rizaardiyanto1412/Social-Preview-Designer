@@ -164,6 +164,76 @@
 	}
 
 	/**
+	 * Distraction-free (fullscreen) controller state machine — pure decisions
+	 * only; admin.js owns the DOM side effects. Kept here so the enter/exit,
+	 * escape-gating, idempotency and aria bookkeeping are Node-testable.
+	 *
+	 * A "controller" is a plain object: { active: boolean, snapshot: object|null }.
+	 * snapshot holds whatever the DOM layer captured on enter (scroll position,
+	 * focus target, etc.) so exit can restore it exactly.
+	 */
+	function createDistractionController() {
+		return { active: false, snapshot: null };
+	}
+
+	/**
+	 * Enter distraction-free mode. Idempotent: a second enter while already
+	 * active is a no-op that keeps the ORIGINAL snapshot (so we never overwrite
+	 * the restore data with mid-session values). Mutates and returns the ctrl.
+	 */
+	function distractionEnter(ctrl, snapshot) {
+		if (ctrl.active) {
+			return { ctrl: ctrl, changed: false };
+		}
+		ctrl.active = true;
+		ctrl.snapshot = snapshot || null;
+		return { ctrl: ctrl, changed: true };
+	}
+
+	/**
+	 * Exit distraction-free mode. Returns the snapshot captured at enter (for the
+	 * DOM layer to restore) and clears it. Idempotent when already inactive.
+	 */
+	function distractionExit(ctrl) {
+		if (!ctrl.active) {
+			return { ctrl: ctrl, changed: false, snapshot: null };
+		}
+		var snapshot = ctrl.snapshot;
+		ctrl.active = false;
+		ctrl.snapshot = null;
+		return { ctrl: ctrl, changed: true, snapshot: snapshot };
+	}
+
+	/**
+	 * Should an Escape keypress exit distraction-free mode?
+	 *
+	 * Only when the mode is active AND nothing is layered above the editor that
+	 * owns Escape (a modal, media frame, or open popover/overflow menu). This
+	 * prevents Escape from tearing down fullscreen while the user is really just
+	 * dismissing a dialog.
+	 */
+	function distractionShouldExitOnEscape(ctrl, blockingOverlayOpen) {
+		return !!ctrl.active && !blockingOverlayOpen;
+	}
+
+	function distractionAriaPressed(active) {
+		return active ? 'true' : 'false';
+	}
+
+	/**
+	 * The toggle button's accessible label / status message for the given state.
+	 * `labels` = { on, off, announceOn, announceOff }.
+	 */
+	function distractionLabels(active, labels) {
+		labels = labels || {};
+		return {
+			label: active ? (labels.on || 'Exit fullscreen') : (labels.off || 'Distraction-free'),
+			ariaPressed: distractionAriaPressed(active),
+			announce: active ? (labels.announceOn || '') : (labels.announceOff || '')
+		};
+	}
+
+	/**
 	 * dirty === current template differs from the last persisted snapshot.
 	 */
 	function isDirty(current, saved) {
@@ -547,6 +617,12 @@
 		deriveLayerName: deriveLayerName,
 		reconcileLabelForTypeChange: reconcileLabelForTypeChange,
 		fitScale: fitScale,
+		createDistractionController: createDistractionController,
+		distractionEnter: distractionEnter,
+		distractionExit: distractionExit,
+		distractionShouldExitOnEscape: distractionShouldExitOnEscape,
+		distractionAriaPressed: distractionAriaPressed,
+		distractionLabels: distractionLabels,
 		clone: clone,
 		equals: equals,
 		clamp: clamp,

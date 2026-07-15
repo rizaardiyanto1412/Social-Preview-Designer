@@ -1658,6 +1658,45 @@
 	}
 }
 
+/* Distraction-free (fullscreen) mode --------------------------------------
+   Class-based only: hide WP chrome and pin the editor page to the viewport.
+   Nothing here mutates WP inline styles, so removing the body class restores
+   the page exactly. */
+body.wpog-distraction-free #adminmenumain,
+body.wpog-distraction-free #wpadminbar,
+body.wpog-distraction-free #wpfooter,
+body.wpog-distraction-free .wpog-shell,
+body.wpog-distraction-free .update-nag,
+body.wpog-distraction-free .notice {
+	display: none !important;
+}
+
+body.wpog-distraction-free #wpcontent,
+body.wpog-distraction-free #wpbody-content {
+	margin-left: 0 !important;
+	padding: 0 !important;
+}
+
+body.wpog-distraction-free .wp-remote-og-editor-page {
+	background: var(--wpog-bg, #f6f7fb);
+	inset: 0;
+	margin: 0;
+	overflow: auto;
+	padding: 16px;
+	position: fixed;
+	z-index: 99900;
+}
+
+body.wpog-distraction-free .wp-remote-og-editor-page .wpog-workspace {
+	min-height: clamp(360px, calc(100dvh - 108px), 100dvh);
+}
+
+.wpog-distraction-toggle[aria-pressed="true"] {
+	background: var(--wpog-accent, #4f46e5);
+	border-color: var(--wpog-accent, #4f46e5);
+	color: #fff;
+}
+
 /* My Templates (custom, reusable) ----------------------------------------- */
 .wpog-templates-section {
 	margin-bottom: 40px;

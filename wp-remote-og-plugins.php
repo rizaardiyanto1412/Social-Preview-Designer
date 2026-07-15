@@ -3052,7 +3052,7 @@ final class WP_Remote_OG_Admin {
 		wp_enqueue_style( 'wp-color-picker' );
 		wp_enqueue_style( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.css', array( 'wp-color-picker' ), self::asset_version( 'assets/admin.css' ) );
 		wp_enqueue_script( 'wp-remote-og-editor-state', WP_REMOTE_OG_URL . 'assets/editor-state.js', array(), self::asset_version( 'assets/editor-state.js' ), true );
-		wp_enqueue_script( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.js', array( 'jquery', 'jquery-ui-draggable', 'jquery-ui-resizable', 'wp-color-picker', 'wp-remote-og-editor-state' ), self::asset_version( 'assets/admin.js' ), true );
+		wp_enqueue_script( 'wp-remote-og-admin', WP_REMOTE_OG_URL . 'assets/admin.js', array( 'jquery', 'jquery-ui-draggable', 'jquery-ui-resizable', 'wp-color-picker', 'wp-a11y', 'wp-remote-og-editor-state' ), self::asset_version( 'assets/admin.js' ), true );
 
 		wp_localize_script(
 			'wp-remote-og-admin',
@@ -3112,6 +3112,10 @@ final class WP_Remote_OG_Admin {
 					'updatedLabel'  => __( 'Updated', 'wp-remote-og-plugins' ),
 					'builtInHeading' => __( 'Built-in Templates', 'wp-remote-og-plugins' ),
 					'myTemplatesHeading' => __( 'My Templates', 'wp-remote-og-plugins' ),
+					'distractionFree' => __( 'Distraction-free', 'wp-remote-og-plugins' ),
+					'exitFullscreen' => __( 'Exit fullscreen', 'wp-remote-og-plugins' ),
+					'distractionFreeOn' => __( 'Distraction-free mode on.', 'wp-remote-og-plugins' ),
+					'distractionFreeOff' => __( 'Distraction-free mode off.', 'wp-remote-og-plugins' ),
 				),
 			)
 		);
@@ -3438,6 +3442,8 @@ final class WP_Remote_OG_Admin {
 			'chevron' => '<path d="M6 9l6 6 6-6"/>',
 			'copy'    => '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
 			'trash'   => '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+			'expand'  => '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+			'compress' => '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
 		);
 
 		$path = isset( $paths[ $name ] ) ? $paths[ $name ] : '';
@@ -3829,6 +3835,7 @@ final class WP_Remote_OG_Admin {
 							</form>
 						</div>
 					</div>
+					<button type="button" class="wpog-icon-btn wpog-distraction-toggle" id="wp-remote-og-distraction-free" aria-pressed="false" data-on-label="<?php esc_attr_e( 'Exit fullscreen', 'wp-remote-og-plugins' ); ?>" data-off-label="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>" title="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'expand' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
 					<button type="button" class="button button-primary wpog-save-btn" id="wp-remote-og-save-template"><?php echo self::icon( 'save' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span><?php esc_html_e( 'Save', 'wp-remote-og-plugins' ); ?></span></button>
 				</div>
 			</div>

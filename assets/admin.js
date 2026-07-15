@@ -15,7 +15,8 @@
 		mediaFrame: null,
 		history: { undo: [], redo: [] },
 		dirtySinceSave: false,
-		customId: window.WPRemoteOG && WPRemoteOG.activeCustomId ? WPRemoteOG.activeCustomId : ''
+		customId: window.WPRemoteOG && WPRemoteOG.activeCustomId ? WPRemoteOG.activeCustomId : '',
+		distraction: ES.createDistractionController()
 	};
 
 	var HISTORY_LIMIT = ES.HISTORY_LIMIT;
@@ -388,6 +389,103 @@
 	function activeCanvasScale() {
 		var scale = state.canvasScale;
 		return scale && scale > 0 ? scale : 1;
+	}
+
+	// --- Distraction-free (fullscreen) mode --------------------------------
+	// Purely class-based: a single body class hides WP chrome and makes the
+	// editor fill the viewport (see admin.css). WP UI is never mutated inline,
+	// so exit restores the page exactly. Default OFF on load (never persisted).
+
+	function distractionSpeak(message) {
+		if (message && window.wp && wp.a11y && typeof wp.a11y.speak === 'function') {
+			wp.a11y.speak(message);
+		}
+	}
+
+	// Is something layered above the editor that legitimately owns Escape? If so
+	// Escape must dismiss THAT, not tear down fullscreen.
+	function isBlockingOverlayOpen() {
+		var nameModalOpen = !$('#wp-remote-og-name-modal').prop('hidden');
+		var presetModalOpen = !$('#wp-remote-og-preset-modal').prop('hidden');
+		var mediaOpen = !!(state.mediaFrame && state.mediaFrame.$el && state.mediaFrame.$el.is(':visible'));
+		var popoverOpen = $('.wpog-overflow-menu').filter(function () {
+			return !$(this).prop('hidden');
+		}).length > 0;
+		return nameModalOpen || presetModalOpen || mediaOpen || popoverOpen;
+	}
+
+	function syncDistractionButton() {
+		var active = state.distraction.active;
+		var strings = (window.WPRemoteOG && WPRemoteOG.strings) || {};
+		var meta = ES.distractionLabels(active, {
+			on: strings.exitFullscreen || 'Exit fullscreen',
+			off: strings.distractionFree || 'Distraction-free',
+			announceOn: strings.distractionFreeOn || '',
+			announceOff: strings.distractionFreeOff || ''
+		});
+		$('#wp-remote-og-distraction-free')
+			.attr('aria-pressed', meta.ariaPressed)
+			.attr('aria-label', meta.label)
+			.attr('title', meta.label);
+		return meta;
+	}
+
+	function enterDistractionFree() {
+		var result = ES.distractionEnter(state.distraction, {
+			scrollX: window.pageXOffset || 0,
+			scrollY: window.pageYOffset || 0
+		});
+		if (!result.changed) {
+			return;
+		}
+		$('body').addClass('wpog-distraction-free');
+		var meta = syncDistractionButton();
+		applyCanvasScale();
+		distractionSpeak(meta.announce);
+	}
+
+	function exitDistractionFree() {
+		var result = ES.distractionExit(state.distraction);
+		if (!result.changed) {
+			return;
+		}
+		$('body').removeClass('wpog-distraction-free');
+		var meta = syncDistractionButton();
+		applyCanvasScale();
+		var snapshot = result.snapshot;
+		if (snapshot) {
+			window.scrollTo(snapshot.scrollX || 0, snapshot.scrollY || 0);
+		}
+		// Restore focus to the toggle so keyboard users are not stranded.
+		$('#wp-remote-og-distraction-free').trigger('focus');
+		distractionSpeak(meta.announce);
+	}
+
+	function toggleDistractionFree() {
+		if (state.distraction.active) {
+			exitDistractionFree();
+		} else {
+			enterDistractionFree();
+		}
+	}
+
+	function bindDistractionFree() {
+		syncDistractionButton();
+		$('#wp-remote-og-distraction-free').on('click', toggleDistractionFree);
+		$(document).on('keydown.wpRemoteOgDistraction', function (event) {
+			if ('Escape' !== event.key) {
+				return;
+			}
+			if (ES.distractionShouldExitOnEscape(state.distraction, isBlockingOverlayOpen())) {
+				event.preventDefault();
+				exitDistractionFree();
+			}
+		});
+		$(window).on('resize.wpRemoteOgDistraction', function () {
+			if (state.distraction.active) {
+				applyCanvasScale();
+			}
+		});
 	}
 
 	function renderCanvas() {
@@ -1594,6 +1692,7 @@
 		});
 
 		rebuildTokenPicker();
+		bindDistractionFree();
 		$(window).on('resize', applyCanvasScale);
 
 		markDirty(false);
