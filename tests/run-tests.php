@@ -304,6 +304,29 @@ wp_remote_og_assert( '' === WP_Remote_OG_Plugin::get_active_custom_id(), 'Deleti
 wp_remote_og_assert( wp_json_encode( WP_Remote_OG_Plugin::get_template() ) === $active_before_delete, 'Deleting the active-linked record never destroys the active template design.' );
 wp_remote_og_assert( is_wp_error( WP_Remote_OG_Admin::delete_custom_template( 'custom-nope' ) ), 'delete_custom_template errors on an unknown id.' );
 
+// Restoring the pre-apply backup must UNLINK the active custom id: the restored
+// design predates the link, so a later Save must not push it into the record.
+delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+$restore_link_source = WP_Remote_OG_Admin::create_custom_template( 'Restore Link Src', $custom_template_body );
+$restore_link_id     = $restore_link_source['id'];
+WP_Remote_OG_Admin::apply_custom_template( $restore_link_id ); // Links id + snapshots backup.
+wp_remote_og_assert( WP_Remote_OG_Plugin::get_active_custom_id() === $restore_link_id, 'Applying a custom template links it before the restore test.' );
+$restore_after = WP_Remote_OG_Admin::restore_template_backup();
+wp_remote_og_assert( is_array( $restore_after ) && '' === $restore_after['customId'], 'restore_template_backup returns an empty customId.' );
+wp_remote_og_assert( '' === WP_Remote_OG_Plugin::get_active_custom_id(), 'Restoring the backup unlinks the active custom id.' );
+WP_Remote_OG_Admin::delete_custom_template( $restore_link_id );
+
+// import_template unlinks the active custom id (source guard: the code path is
+// reached only via a file upload/redirect, so assert the unlink call is present
+// inside the import_template body, before its success redirect).
+$plugin_src_import = file_get_contents( dirname( __DIR__ ) . '/wp-remote-og-plugins.php' );
+$import_start      = strpos( $plugin_src_import, 'public static function import_template()' );
+$import_body       = false === $import_start ? '' : substr( $plugin_src_import, $import_start, strpos( $plugin_src_import, "wp_remote_og_imported", $import_start ) - $import_start );
+wp_remote_og_assert(
+	false !== strpos( $import_body, "set_active_custom_id( '' )" ),
+	'import_template unlinks the active custom id after replacing the design.'
+);
+
 // Size guard: a template whose serialized record exceeds the byte limit is rejected.
 $huge_body = $custom_template_body;
 $huge_body['layers'][0]['content'] = str_repeat( 'A', WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_BYTES + 1000 );

@@ -3174,6 +3174,10 @@ final class WP_Remote_OG_Admin {
 		}
 
 		WP_Remote_OG_Plugin::save_template( $template );
+		// An import replaces the active design wholesale, so it must not stay
+		// linked to a custom record — otherwise the next editor Save would
+		// overwrite that custom template with the imported design.
+		WP_Remote_OG_Plugin::set_active_custom_id( '' );
 		wp_safe_redirect( add_query_arg( 'wp_remote_og_imported', '1', $redirect ) );
 		exit;
 	}
@@ -4210,6 +4214,14 @@ final class WP_Remote_OG_Admin {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in verify_ajax(); sanitized in save_active_template().
 		$new_name  = isset( $_POST['custom_name'] ) ? wp_unslash( $_POST['custom_name'] ) : '';
 
+		// Backward compatibility: a legacy/non-custom-aware caller posts neither
+		// field. It must not silently unlink an active custom template, so we
+		// preserve the existing link (keeping the linked record in sync). A
+		// custom-aware client always sends custom_id (possibly '' to unlink).
+		if ( ! isset( $_POST['custom_id'] ) && ! isset( $_POST['custom_name'] ) ) {
+			$custom_id = WP_Remote_OG_Plugin::get_active_custom_id();
+		}
+
 		$result = self::save_active_template( $template, $custom_id, $new_name );
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
@@ -4358,10 +4370,15 @@ final class WP_Remote_OG_Admin {
 
 		$template = WP_Remote_OG_Plugin::save_template( $backup['template'] );
 		delete_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
+		// The backup snapshot predates the current custom link, so restoring it
+		// unlinks: a later Save must not push the restored design into whatever
+		// custom record happened to be active.
+		WP_Remote_OG_Plugin::set_active_custom_id( '' );
 
 		return array(
 			'template' => $template,
 			'dirty'    => (bool) get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ),
+			'customId' => '',
 		);
 	}
 
