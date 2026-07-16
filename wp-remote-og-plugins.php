@@ -3387,6 +3387,7 @@ final class WP_Remote_OG_Admin {
 	 */
 	private static function render_shell( $active ) {
 		echo '<div class="wpog-shell">';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- self::brand_mark() is a static developer-authored SVG constant with no user input; wp_kses would lowercase the case-sensitive viewBox attribute and break rendering.
 		echo '<div class="wpog-shell-brand"><span class="wpog-logo-wrap" aria-hidden="true">' . self::brand_mark() . '</span><span class="wpog-shell-name">' . esc_html__( 'Social Preview Designer', 'social-preview-designer' ) . '</span></div>';
 		echo '<nav class="wpog-nav" aria-label="' . esc_attr__( 'Social Preview Designer sections', 'social-preview-designer' ) . '">';
 		foreach ( self::nav_items() as $item ) {
@@ -4385,6 +4386,7 @@ final class WP_Remote_OG_Admin {
 		// field. It must not silently unlink an active custom template, so we
 		// preserve the existing link (keeping the linked record in sync). A
 		// custom-aware client always sends custom_id (possibly '' to unlink).
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in self::verify_ajax(); only presence is inspected.
 		if ( ! isset( $_POST['custom_id'] ) && ! isset( $_POST['custom_name'] ) ) {
 			$custom_id = WP_Remote_OG_Plugin::get_active_custom_id();
 		}
