@@ -5,6 +5,11 @@
 .git
 .DS_Store
 .playwright-mcp
+.claude
+.sleekwp-pixel-reference.jpg
+package.json
+node_modules
+vendor
 docs
 dist
 tests
