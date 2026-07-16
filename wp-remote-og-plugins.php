@@ -8,7 +8,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires at least: 6.0
  * Requires PHP: 7.4
- * Text Domain: wp-remote-og-plugins
+ * Text Domain: social-preview-designer
  *
  * @package WPRemoteOG
  */
@@ -708,7 +708,7 @@ final class WP_Remote_OG_Uploads {
 	public static function ensure_directory() {
 		$directory = self::get_directory();
 		if ( ! wp_mkdir_p( $directory['path'] ) ) {
-			return new WP_Error( 'wp_remote_og_upload_dir', __( 'Unable to create WP Remote OG upload directory.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_upload_dir', __( 'Unable to create WP Remote OG upload directory.', 'social-preview-designer' ) );
 		}
 
 		$index = trailingslashit( $directory['path'] ) . 'index.html';
@@ -723,7 +723,7 @@ final class WP_Remote_OG_Uploads {
 		self::ensure_directory();
 		$directory = self::get_fonts_directory();
 		if ( ! wp_mkdir_p( $directory['path'] ) ) {
-			return new WP_Error( 'wp_remote_og_font_dir', __( 'Unable to create WP Remote OG font directory.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_font_dir', __( 'Unable to create WP Remote OG font directory.', 'social-preview-designer' ) );
 		}
 
 		$index = trailingslashit( $directory['path'] ) . 'index.html';
@@ -940,8 +940,8 @@ final class WP_Remote_OG_Dynamic_Fields {
 		$tokens  = array();
 		$seen    = array();
 
-		self::add_discovered_token( $tokens, $seen, '{post_title}', __( 'Post Title', 'wp-remote-og-plugins' ) );
-		self::add_discovered_token( $tokens, $seen, '{publishpress_author_avatar}', __( 'PublishPress Author Avatar', 'wp-remote-og-plugins' ) );
+		self::add_discovered_token( $tokens, $seen, '{post_title}', __( 'Post Title', 'social-preview-designer' ) );
+		self::add_discovered_token( $tokens, $seen, '{publishpress_author_avatar}', __( 'PublishPress Author Avatar', 'social-preview-designer' ) );
 		$taxonomies = self::discovered_taxonomy_tokens();
 		foreach ( $taxonomies as $token ) {
 			self::add_discovered_token( $tokens, $seen, $token['token'], $token['label'] );
@@ -986,7 +986,7 @@ final class WP_Remote_OG_Dynamic_Fields {
 				'token' => '{taxonomy:' . sanitize_key( $taxonomy->name ) . '}',
 				'label' => sprintf(
 					/* translators: %s: taxonomy label */
-					__( 'Taxonomy: %s', 'wp-remote-og-plugins' ),
+					__( 'Taxonomy: %s', 'social-preview-designer' ),
 					$taxonomy_label
 				),
 			);
@@ -1023,7 +1023,7 @@ final class WP_Remote_OG_Dynamic_Fields {
 					'token' => '{acf:' . $name . '}',
 					'label' => sprintf(
 						/* translators: %s: ACF field name */
-						__( 'ACF: %s', 'wp-remote-og-plugins' ),
+						__( 'ACF: %s', 'social-preview-designer' ),
 						sanitize_text_field( $field['name'] )
 					),
 				);
@@ -1060,7 +1060,7 @@ final class WP_Remote_OG_Dynamic_Fields {
 					'token' => '{meta:' . sanitize_key( $key ) . '}',
 					'label' => sprintf(
 						/* translators: %s: meta key name */
-						__( 'Meta: %s', 'wp-remote-og-plugins' ),
+						__( 'Meta: %s', 'social-preview-designer' ),
 						$key
 					),
 				);
@@ -1288,14 +1288,14 @@ final class WP_Remote_OG_Dynamic_Fields {
 		$content  = trim( (string) $content );
 
 		if ( '' === $content ) {
-			$warnings[] = __( 'Image layer has no source.', 'wp-remote-og-plugins' );
+			$warnings[] = __( 'Image layer has no source.', 'social-preview-designer' );
 			return '';
 		}
 
 		$resolved = self::resolve_text( $post_id, $content, $warnings );
 		$resolved = trim( (string) $resolved );
 		if ( '' === $resolved ) {
-			$warnings[] = __( 'Unable to resolve image layer source.', 'wp-remote-og-plugins' );
+			$warnings[] = __( 'Unable to resolve image layer source.', 'social-preview-designer' );
 		}
 
 		return $resolved;
@@ -1304,7 +1304,7 @@ final class WP_Remote_OG_Dynamic_Fields {
 	public static function preview_data( $post_id, $template = null ) {
 		$post = get_post( $post_id );
 		if ( ! $post || 'post' !== $post->post_type ) {
-			return new WP_Error( 'wp_remote_og_invalid_post', __( 'Invalid preview post.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_invalid_post', __( 'Invalid preview post.', 'social-preview-designer' ) );
 		}
 
 		$template = $template ? WP_Remote_OG_Plugin::sanitize_template( $template ) : WP_Remote_OG_Plugin::get_template();
@@ -1352,7 +1352,7 @@ final class WP_Remote_OG_Fonts {
 		$family = sanitize_text_field( $family );
 
 		if ( '' === $family ) {
-			return new WP_Error( 'wp_remote_og_google_font_missing', __( 'Google font family is required.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_missing', __( 'Google font family is required.', 'social-preview-designer' ) );
 		}
 
 		return $family;
@@ -1418,7 +1418,7 @@ final class WP_Remote_OG_Fonts {
 		);
 
 		if ( ! $css_url ) {
-			return new WP_Error( 'wp_remote_og_google_font_bad_family', __( 'The selected Google font family is not valid.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_bad_family', __( 'The selected Google font family is not valid.', 'social-preview-designer' ) );
 		}
 
 		$family_slug = sanitize_key( str_replace( array( ' ', ',', ':', ';', '@' ), '-', $family ) );
@@ -1464,7 +1464,7 @@ final class WP_Remote_OG_Fonts {
 
 	public static function ensure_google_font_renderable( $font ) {
 		if ( ! is_array( $font ) || empty( $font['id'] ) || empty( $font['label'] ) || 'google' !== ( $font['source'] ?? '' ) ) {
-			return new WP_Error( 'wp_remote_og_google_font_invalid', __( 'The Google font record is invalid.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_invalid', __( 'The Google font record is invalid.', 'social-preview-designer' ) );
 		}
 
 		if ( ! empty( $font['renderable'] ) && ! empty( $font['path'] ) && file_exists( $font['path'] ) ) {
@@ -1481,7 +1481,7 @@ final class WP_Remote_OG_Fonts {
 		$css_url = esc_url_raw( $css_url );
 
 		if ( ! wp_http_validate_url( $css_url ) ) {
-			return new WP_Error( 'wp_remote_og_google_font_css_url', __( 'The Google font stylesheet URL is not valid.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_css_url', __( 'The Google font stylesheet URL is not valid.', 'social-preview-designer' ) );
 		}
 
 		$response = wp_remote_get(
@@ -1494,12 +1494,12 @@ final class WP_Remote_OG_Fonts {
 		);
 
 		if ( is_wp_error( $response ) || 200 !== absint( wp_remote_retrieve_response_code( $response ) ) ) {
-			return new WP_Error( 'wp_remote_og_google_font_css', __( 'Unable to load the Google font stylesheet.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_css', __( 'Unable to load the Google font stylesheet.', 'social-preview-designer' ) );
 		}
 
 		$font_url = self::google_font_ttf_url_from_css( wp_remote_retrieve_body( $response ) );
 		if ( '' === $font_url || ! wp_http_validate_url( $font_url ) ) {
-			return new WP_Error( 'wp_remote_og_google_font_ttf_missing', __( 'The Google font stylesheet did not include a TTF source.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_ttf_missing', __( 'The Google font stylesheet did not include a TTF source.', 'social-preview-designer' ) );
 		}
 
 		$font_response = wp_remote_get(
@@ -1512,18 +1512,18 @@ final class WP_Remote_OG_Fonts {
 		);
 
 		if ( is_wp_error( $font_response ) || 200 !== absint( wp_remote_retrieve_response_code( $font_response ) ) ) {
-			return new WP_Error( 'wp_remote_og_google_font_download', __( 'Unable to download the Google font file.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_download', __( 'Unable to download the Google font file.', 'social-preview-designer' ) );
 		}
 
 		$font_body = wp_remote_retrieve_body( $font_response );
 		if ( '' === $font_body ) {
-			return new WP_Error( 'wp_remote_og_google_font_empty', __( 'The Google font file download was empty.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_empty', __( 'The Google font file download was empty.', 'social-preview-designer' ) );
 		}
 
 		// Verify the payload is a real font before writing it to disk (TTF/TTC/OTF magic bytes).
 		$magic = substr( $font_body, 0, 4 );
 		if ( ! in_array( $magic, array( "\x00\x01\x00\x00", 'true', 'ttcf', 'OTTO' ), true ) ) {
-			return new WP_Error( 'wp_remote_og_google_font_bad_file', __( 'The downloaded file is not a valid font file.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_bad_file', __( 'The downloaded file is not a valid font file.', 'social-preview-designer' ) );
 		}
 
 		$directory = WP_Remote_OG_Uploads::ensure_fonts_directory();
@@ -1535,7 +1535,7 @@ final class WP_Remote_OG_Fonts {
 		$dest_path = trailingslashit( $directory['path'] ) . $filename;
 
 		if ( ! file_put_contents( $dest_path, $font_body ) ) {
-			return new WP_Error( 'wp_remote_og_google_font_store', __( 'Unable to store the Google font file.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_google_font_store', __( 'Unable to store the Google font file.', 'social-preview-designer' ) );
 		}
 
 		$font['css_url']    = esc_url_raw( $css_url );
@@ -1602,11 +1602,11 @@ final class WP_Remote_OG_Fonts {
 
 	public static function register_font_from_path( $path, $label = '' ) {
 		if ( ! file_exists( $path ) || ! is_readable( $path ) || ! self::is_supported_font_path( $path ) ) {
-			return new WP_Error( 'wp_remote_og_font_type', __( 'Only TTF, OTF, WOFF, and WOFF2 font files are allowed.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_font_type', __( 'Only TTF, OTF, WOFF, and WOFF2 font files are allowed.', 'social-preview-designer' ) );
 		}
 
 		if ( ! self::is_valid_font_file( $path ) ) {
-			return new WP_Error( 'wp_remote_og_font_mime', __( 'The file is not a valid font file.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_font_mime', __( 'The file is not a valid font file.', 'social-preview-designer' ) );
 		}
 
 		$directory = WP_Remote_OG_Uploads::ensure_fonts_directory();
@@ -1621,7 +1621,7 @@ final class WP_Remote_OG_Fonts {
 		$dest_path = trailingslashit( $directory['path'] ) . $filename;
 
 		if ( ! copy( $path, $dest_path ) ) {
-			return new WP_Error( 'wp_remote_og_font_copy', __( 'Unable to store font file.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_font_copy', __( 'Unable to store font file.', 'social-preview-designer' ) );
 		}
 
 		$font = array(
@@ -1645,16 +1645,16 @@ final class WP_Remote_OG_Fonts {
 
 	public static function upload_from_request( $file ) {
 		if ( empty( $file ) || ! isset( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
-			return new WP_Error( 'wp_remote_og_font_missing', __( 'No font file was uploaded.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_font_missing', __( 'No font file was uploaded.', 'social-preview-designer' ) );
 		}
 
 		$extension = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
 		if ( ! self::is_supported_font_path( $file['name'] ) ) {
-			return new WP_Error( 'wp_remote_og_font_type', __( 'Only TTF, OTF, WOFF, and WOFF2 font files are allowed.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_font_type', __( 'Only TTF, OTF, WOFF, and WOFF2 font files are allowed.', 'social-preview-designer' ) );
 		}
 
 		if ( ! self::is_valid_font_file( $file['tmp_name'] ) ) {
-			return new WP_Error( 'wp_remote_og_font_mime', __( 'The uploaded file is not a valid font file.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_font_mime', __( 'The uploaded file is not a valid font file.', 'social-preview-designer' ) );
 		}
 
 		$directory = WP_Remote_OG_Uploads::ensure_fonts_directory();
@@ -1668,7 +1668,7 @@ final class WP_Remote_OG_Fonts {
 		$dest_path = trailingslashit( $directory['path'] ) . $filename;
 
 		if ( ! copy( $file['tmp_name'], $dest_path ) ) {
-			return new WP_Error( 'wp_remote_og_font_move', __( 'Unable to store uploaded font.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_font_move', __( 'Unable to store uploaded font.', 'social-preview-designer' ) );
 		}
 
 		$font = array(
@@ -1751,11 +1751,11 @@ final class WP_Remote_OG_Renderer {
 
 	public static function engine( $force_engine = '' ) {
 		if ( 'gd' === $force_engine ) {
-			return function_exists( 'imagecreatetruecolor' ) ? 'gd' : new WP_Error( 'wp_remote_og_no_gd', __( 'GD is not available.', 'wp-remote-og-plugins' ) );
+			return function_exists( 'imagecreatetruecolor' ) ? 'gd' : new WP_Error( 'wp_remote_og_no_gd', __( 'GD is not available.', 'social-preview-designer' ) );
 		}
 
 		if ( 'imagick' === $force_engine ) {
-			return class_exists( 'Imagick' ) ? 'imagick' : new WP_Error( 'wp_remote_og_no_imagick', __( 'Imagick is not available.', 'wp-remote-og-plugins' ) );
+			return class_exists( 'Imagick' ) ? 'imagick' : new WP_Error( 'wp_remote_og_no_imagick', __( 'Imagick is not available.', 'social-preview-designer' ) );
 		}
 
 		if ( class_exists( 'Imagick' ) ) {
@@ -1766,12 +1766,12 @@ final class WP_Remote_OG_Renderer {
 			return 'gd';
 		}
 
-		return new WP_Error( 'wp_remote_og_no_renderer', __( 'Neither Imagick nor GD is available.', 'wp-remote-og-plugins' ) );
+		return new WP_Error( 'wp_remote_og_no_renderer', __( 'Neither Imagick nor GD is available.', 'social-preview-designer' ) );
 	}
 
 	private static function render_with_imagick( $post_id, $template, $destination ) {
 		if ( ! class_exists( 'Imagick' ) ) {
-			return new WP_Error( 'wp_remote_og_no_imagick', __( 'Imagick is not available.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_no_imagick', __( 'Imagick is not available.', 'social-preview-designer' ) );
 		}
 
 		try {
@@ -1814,7 +1814,7 @@ final class WP_Remote_OG_Renderer {
 			return new WP_Error( 'wp_remote_og_imagick_error', sanitize_text_field( $exception->getMessage() ) );
 		}
 
-		return file_exists( $destination ) ? true : new WP_Error( 'wp_remote_og_render_failed', __( 'Image file was not created.', 'wp-remote-og-plugins' ) );
+		return file_exists( $destination ) ? true : new WP_Error( 'wp_remote_og_render_failed', __( 'Image file was not created.', 'social-preview-designer' ) );
 	}
 
 	private static function draw_text_imagick( $image, $layer, $text ) {
@@ -1932,12 +1932,12 @@ final class WP_Remote_OG_Renderer {
 
 	private static function render_with_gd( $post_id, $template, $destination ) {
 		if ( ! function_exists( 'imagecreatetruecolor' ) ) {
-			return new WP_Error( 'wp_remote_og_no_gd', __( 'GD is not available.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_no_gd', __( 'GD is not available.', 'social-preview-designer' ) );
 		}
 
 		$image = imagecreatetruecolor( WP_Remote_OG_Plugin::CANVAS_WIDTH, WP_Remote_OG_Plugin::CANVAS_HEIGHT );
 		if ( ! $image ) {
-			return new WP_Error( 'wp_remote_og_gd_create', __( 'Unable to create GD image canvas.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_gd_create', __( 'Unable to create GD image canvas.', 'social-preview-designer' ) );
 		}
 
 		$background = self::allocate_color( $image, '#f8fafc' );
@@ -1969,7 +1969,7 @@ final class WP_Remote_OG_Renderer {
 		imagedestroy( $image );
 
 		if ( ! $result || ! file_exists( $destination ) ) {
-			return new WP_Error( 'wp_remote_og_render_failed', __( 'Unable to write generated PNG.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_render_failed', __( 'Unable to write generated PNG.', 'social-preview-designer' ) );
 		}
 
 		return true;
@@ -2445,7 +2445,7 @@ final class WP_Remote_OG_Generator {
 	public static function generate_for_post( $post_id, $args = array() ) {
 		$post = get_post( $post_id );
 		if ( ! $post || 'post' !== $post->post_type ) {
-			return new WP_Error( 'wp_remote_og_invalid_post', __( 'OG images can only be generated for standard posts.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_invalid_post', __( 'OG images can only be generated for standard posts.', 'social-preview-designer' ) );
 		}
 
 		$directory = WP_Remote_OG_Uploads::ensure_directory();
@@ -2631,9 +2631,9 @@ final class WP_Remote_OG_Presets {
 		return array(
 			array(
 				'key'         => 'bold-left',
-				'name'        => __( 'Bold Left', 'wp-remote-og-plugins' ),
+				'name'        => __( 'Bold Left', 'social-preview-designer' ),
 				'category'    => 'Bold',
-				'description' => __( 'Dark canvas with a vibrant accent bar and a large left-aligned title.', 'wp-remote-og-plugins' ),
+				'description' => __( 'Dark canvas with a vibrant accent bar and a large left-aligned title.', 'social-preview-designer' ),
 				'layers'      => array(
 					self::rect( 'bg', 0, 0, 1200, 630, '#0f172a' ),
 					self::rect( 'accent', 90, 96, 10, 438, '#6366f1', 'vertical' ),
@@ -2643,9 +2643,9 @@ final class WP_Remote_OG_Presets {
 			),
 			array(
 				'key'         => 'centered-minimal',
-				'name'        => __( 'Centered Minimal', 'wp-remote-og-plugins' ),
+				'name'        => __( 'Centered Minimal', 'social-preview-designer' ),
 				'category'    => 'Minimal',
-				'description' => __( 'Clean white background with a centered title and a subtle accent divider.', 'wp-remote-og-plugins' ),
+				'description' => __( 'Clean white background with a centered title and a subtle accent divider.', 'social-preview-designer' ),
 				'layers'      => array(
 					self::rect( 'bg', 0, 0, 1200, 630, '#ffffff' ),
 					self::text( 'title', '{post_title}', 120, 200, 960, 180, '#0f172a', 66, 38, 'center', 3 ),
@@ -2655,9 +2655,9 @@ final class WP_Remote_OG_Presets {
 			),
 			array(
 				'key'         => 'split-accent',
-				'name'        => __( 'Split Accent', 'wp-remote-og-plugins' ),
+				'name'        => __( 'Split Accent', 'social-preview-designer' ),
 				'category'    => 'Job Board',
-				'description' => __( 'A coloured company panel on the left with the job title on the right.', 'wp-remote-og-plugins' ),
+				'description' => __( 'A coloured company panel on the left with the job title on the right.', 'social-preview-designer' ),
 				'layers'      => array(
 					self::rect( 'bg', 0, 0, 1200, 630, '#ffffff' ),
 					self::rect( 'panel', 0, 0, 460, 630, '#4f46e5' ),
@@ -2668,9 +2668,9 @@ final class WP_Remote_OG_Presets {
 			),
 			array(
 				'key'         => 'top-badge',
-				'name'        => __( 'Top Badge', 'wp-remote-og-plugins' ),
+				'name'        => __( 'Top Badge', 'social-preview-designer' ),
 				'category'    => 'Job Board',
-				'description' => __( 'A pill-style badge over a big title, ideal for job type or category.', 'wp-remote-og-plugins' ),
+				'description' => __( 'A pill-style badge over a big title, ideal for job type or category.', 'social-preview-designer' ),
 				'layers'      => array(
 					self::rect( 'bg', 0, 0, 1200, 630, '#f8fafc' ),
 					self::rect( 'strip', 0, 0, 1200, 16, '#4f46e5' ),
@@ -2681,9 +2681,9 @@ final class WP_Remote_OG_Presets {
 			),
 			array(
 				'key'         => 'footer-meta',
-				'name'        => __( 'Footer Meta', 'wp-remote-og-plugins' ),
+				'name'        => __( 'Footer Meta', 'social-preview-designer' ),
 				'category'    => 'Editorial',
-				'description' => __( 'Editorial title up top with a dark footer strip carrying the metadata.', 'wp-remote-og-plugins' ),
+				'description' => __( 'Editorial title up top with a dark footer strip carrying the metadata.', 'social-preview-designer' ),
 				'layers'      => array(
 					self::rect( 'bg', 0, 0, 1200, 630, '#ffffff' ),
 					self::text( 'title', '{post_title}', 90, 110, 1020, 300, '#111827', 70, 40, 'left', 3 ),
@@ -2693,9 +2693,9 @@ final class WP_Remote_OG_Presets {
 			),
 			array(
 				'key'         => 'dark-panel',
-				'name'        => __( 'Dark Panel', 'wp-remote-og-plugins' ),
+				'name'        => __( 'Dark Panel', 'social-preview-designer' ),
 				'category'    => 'Editorial',
-				'description' => __( 'Moody dark background with a warm accent rule and a salary highlight.', 'wp-remote-og-plugins' ),
+				'description' => __( 'Moody dark background with a warm accent rule and a salary highlight.', 'social-preview-designer' ),
 				'layers'      => array(
 					self::rect( 'bg', 0, 0, 1200, 630, '#111827' ),
 					self::rect( 'rule', 90, 150, 120, 6, '#f59e0b' ),
@@ -2705,9 +2705,9 @@ final class WP_Remote_OG_Presets {
 			),
 			array(
 				'key'         => 'duotone-blocks',
-				'name'        => __( 'Duotone Blocks', 'wp-remote-og-plugins' ),
+				'name'        => __( 'Duotone Blocks', 'social-preview-designer' ),
 				'category'    => 'Bold',
-				'description' => __( 'Two solid colour blocks with a centred title spanning the seam.', 'wp-remote-og-plugins' ),
+				'description' => __( 'Two solid colour blocks with a centred title spanning the seam.', 'social-preview-designer' ),
 				'layers'      => array(
 					self::rect( 'block-top', 0, 0, 1200, 315, '#4f46e5' ),
 					self::rect( 'block-bottom', 0, 315, 1200, 315, '#0f172a' ),
@@ -2717,9 +2717,9 @@ final class WP_Remote_OG_Presets {
 			),
 			array(
 				'key'         => 'corner-brand',
-				'name'        => __( 'Corner Brand', 'wp-remote-og-plugins' ),
+				'name'        => __( 'Corner Brand', 'social-preview-designer' ),
 				'category'    => 'Minimal',
-				'description' => __( 'Minimal light layout with a small corner brand mark and a strong title.', 'wp-remote-og-plugins' ),
+				'description' => __( 'Minimal light layout with a small corner brand mark and a strong title.', 'social-preview-designer' ),
 				'layers'      => array(
 					self::rect( 'bg', 0, 0, 1200, 630, '#ffffff' ),
 					self::rect( 'mark', 90, 80, 64, 64, '#4f46e5' ),
@@ -2878,8 +2878,8 @@ final class WP_Remote_OG_Admin {
 		$hooks  = array();
 
 		$hooks[] = add_menu_page(
-			__( 'Social Preview Designer', 'wp-remote-og-plugins' ),
-			__( 'Social Preview Designer', 'wp-remote-og-plugins' ),
+			__( 'Social Preview Designer', 'social-preview-designer' ),
+			__( 'Social Preview Designer', 'social-preview-designer' ),
 			WP_Remote_OG_Plugin::capability(),
 			$parent,
 			array( __CLASS__, 'render_dashboard_page' ),
@@ -2887,13 +2887,13 @@ final class WP_Remote_OG_Admin {
 			58
 		);
 
-		$hooks[] = add_submenu_page( $parent, __( 'Dashboard', 'wp-remote-og-plugins' ), __( 'Dashboard', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), $parent, array( __CLASS__, 'render_dashboard_page' ) );
-		$hooks[] = add_submenu_page( $parent, __( 'Template Editor', 'wp-remote-og-plugins' ), __( 'Template Editor', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), self::EDITOR_SLUG, array( __CLASS__, 'render_template_page' ) );
-		$hooks[] = add_submenu_page( $parent, __( 'Templates', 'wp-remote-og-plugins' ), __( 'Templates', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-templates', array( __CLASS__, 'render_templates_page' ) );
-		$hooks[] = add_submenu_page( $parent, __( 'Dynamic Fields', 'wp-remote-og-plugins' ), __( 'Dynamic Fields', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fields', array( __CLASS__, 'render_fields_page' ) );
-		$hooks[] = add_submenu_page( $parent, __( 'Fonts', 'wp-remote-og-plugins' ), __( 'Fonts', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fonts', array( __CLASS__, 'render_fonts_page' ) );
-		$hooks[] = add_submenu_page( $parent, __( 'Generation Tools', 'wp-remote-og-plugins' ), __( 'Generation Tools', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-tools', array( __CLASS__, 'render_tools_page' ) );
-		$hooks[] = add_submenu_page( $parent, __( 'Diagnostics', 'wp-remote-og-plugins' ), __( 'Diagnostics', 'wp-remote-og-plugins' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-diagnostics', array( __CLASS__, 'render_diagnostics_page' ) );
+		$hooks[] = add_submenu_page( $parent, __( 'Dashboard', 'social-preview-designer' ), __( 'Dashboard', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), $parent, array( __CLASS__, 'render_dashboard_page' ) );
+		$hooks[] = add_submenu_page( $parent, __( 'Template Editor', 'social-preview-designer' ), __( 'Template Editor', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), self::EDITOR_SLUG, array( __CLASS__, 'render_template_page' ) );
+		$hooks[] = add_submenu_page( $parent, __( 'Templates', 'social-preview-designer' ), __( 'Templates', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-templates', array( __CLASS__, 'render_templates_page' ) );
+		$hooks[] = add_submenu_page( $parent, __( 'Dynamic Fields', 'social-preview-designer' ), __( 'Dynamic Fields', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fields', array( __CLASS__, 'render_fields_page' ) );
+		$hooks[] = add_submenu_page( $parent, __( 'Fonts', 'social-preview-designer' ), __( 'Fonts', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fonts', array( __CLASS__, 'render_fonts_page' ) );
+		$hooks[] = add_submenu_page( $parent, __( 'Generation Tools', 'social-preview-designer' ), __( 'Generation Tools', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-tools', array( __CLASS__, 'render_tools_page' ) );
+		$hooks[] = add_submenu_page( $parent, __( 'Diagnostics', 'social-preview-designer' ), __( 'Diagnostics', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-diagnostics', array( __CLASS__, 'render_diagnostics_page' ) );
 
 		self::register_screen_hooks( $hooks );
 	}
@@ -3075,52 +3075,52 @@ final class WP_Remote_OG_Admin {
 				'maxCustomTemplates' => WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES,
 				'maxCustomNameLength' => WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_NAME,
 				'strings'        => array(
-					'saved'      => __( 'Template saved.', 'wp-remote-og-plugins' ),
-					'savedShort' => __( 'Saved', 'wp-remote-og-plugins' ),
-					'saveError'  => __( 'Save failed', 'wp-remote-og-plugins' ),
-					'generating' => __( 'Generating...', 'wp-remote-og-plugins' ),
-					'googleFontListFallback' => __( 'Unable to load Google font directory. You can still type the font name manually.', 'wp-remote-og-plugins' ),
-					'applyConfirm' => __( 'Apply this template? This replaces your current template design. Your original template stays backed up so you can restore it.', 'wp-remote-og-plugins' ),
-					'restoreConfirm' => __( 'Restore your previous template? This replaces the current design.', 'wp-remote-og-plugins' ),
-					'applied'    => __( 'Template applied. Open the Template Editor to fine-tune it.', 'wp-remote-og-plugins' ),
-					'restored'   => __( 'Previous template restored.', 'wp-remote-og-plugins' ),
-					'applyFailed' => __( 'Unable to apply the template.', 'wp-remote-og-plugins' ),
-					'previewNote' => __( 'Preview uses sample placeholder content.', 'wp-remote-og-plugins' ),
-					'close'      => __( 'Close', 'wp-remote-og-plugins' ),
-					'apply'      => __( 'Apply template', 'wp-remote-og-plugins' ),
-					'saveAsTitle'   => __( 'Save as reusable template', 'wp-remote-og-plugins' ),
-					'saveAsPrompt'  => __( 'Give this template a name so you can reuse it later.', 'wp-remote-og-plugins' ),
-					'nameLabel'     => __( 'Template name', 'wp-remote-og-plugins' ),
-					'saveAsReusable' => __( 'Save as reusable template', 'wp-remote-og-plugins' ),
-					'saveCopyTitle' => __( 'Save a copy', 'wp-remote-og-plugins' ),
-					'saveCopyPrompt' => __( 'Give the copy a name. Your current template stays as it is.', 'wp-remote-og-plugins' ),
-					'saveCopy'      => __( 'Save a copy', 'wp-remote-og-plugins' ),
-					'cancel'        => __( 'Cancel', 'wp-remote-og-plugins' ),
-					'defaultTemplateName' => __( 'My Template', 'wp-remote-og-plugins' ),
-					'nameRequired'  => __( 'Please enter a template name.', 'wp-remote-og-plugins' ),
-					'nameTooLong'   => __( 'Template names must be 100 characters or fewer.', 'wp-remote-og-plugins' ),
-					'templateSaved' => __( 'Template saved to My Templates.', 'wp-remote-og-plugins' ),
-					'customEmpty'   => __( 'You have not saved any templates yet. Design one in the editor, then choose “Save as reusable template”.', 'wp-remote-og-plugins' ),
-					'rename'        => __( 'Rename', 'wp-remote-og-plugins' ),
-					'duplicate'     => __( 'Duplicate', 'wp-remote-og-plugins' ),
-					'delete'        => __( 'Delete', 'wp-remote-og-plugins' ),
-					'applyEdit'     => __( 'Apply & edit', 'wp-remote-og-plugins' ),
-					'preview'       => __( 'Preview', 'wp-remote-og-plugins' ),
-					'renamePrompt'  => __( 'Rename template', 'wp-remote-og-plugins' ),
-					'deleteConfirm' => __( 'Delete this template? This cannot be undone. Your current editor design is not affected.', 'wp-remote-og-plugins' ),
-					'save'          => __( 'Save', 'wp-remote-og-plugins' ),
-					'updatedLabel'  => __( 'Updated', 'wp-remote-og-plugins' ),
-					'thumbLoading'  => __( 'Loading preview…', 'wp-remote-og-plugins' ),
-					'thumbError'    => __( 'Preview unavailable', 'wp-remote-og-plugins' ),
-					'thumbRetry'    => __( 'Retry', 'wp-remote-og-plugins' ),
+					'saved'      => __( 'Template saved.', 'social-preview-designer' ),
+					'savedShort' => __( 'Saved', 'social-preview-designer' ),
+					'saveError'  => __( 'Save failed', 'social-preview-designer' ),
+					'generating' => __( 'Generating...', 'social-preview-designer' ),
+					'googleFontListFallback' => __( 'Unable to load Google font directory. You can still type the font name manually.', 'social-preview-designer' ),
+					'applyConfirm' => __( 'Apply this template? This replaces your current template design. Your original template stays backed up so you can restore it.', 'social-preview-designer' ),
+					'restoreConfirm' => __( 'Restore your previous template? This replaces the current design.', 'social-preview-designer' ),
+					'applied'    => __( 'Template applied. Open the Template Editor to fine-tune it.', 'social-preview-designer' ),
+					'restored'   => __( 'Previous template restored.', 'social-preview-designer' ),
+					'applyFailed' => __( 'Unable to apply the template.', 'social-preview-designer' ),
+					'previewNote' => __( 'Preview uses sample placeholder content.', 'social-preview-designer' ),
+					'close'      => __( 'Close', 'social-preview-designer' ),
+					'apply'      => __( 'Apply template', 'social-preview-designer' ),
+					'saveAsTitle'   => __( 'Save as reusable template', 'social-preview-designer' ),
+					'saveAsPrompt'  => __( 'Give this template a name so you can reuse it later.', 'social-preview-designer' ),
+					'nameLabel'     => __( 'Template name', 'social-preview-designer' ),
+					'saveAsReusable' => __( 'Save as reusable template', 'social-preview-designer' ),
+					'saveCopyTitle' => __( 'Save a copy', 'social-preview-designer' ),
+					'saveCopyPrompt' => __( 'Give the copy a name. Your current template stays as it is.', 'social-preview-designer' ),
+					'saveCopy'      => __( 'Save a copy', 'social-preview-designer' ),
+					'cancel'        => __( 'Cancel', 'social-preview-designer' ),
+					'defaultTemplateName' => __( 'My Template', 'social-preview-designer' ),
+					'nameRequired'  => __( 'Please enter a template name.', 'social-preview-designer' ),
+					'nameTooLong'   => __( 'Template names must be 100 characters or fewer.', 'social-preview-designer' ),
+					'templateSaved' => __( 'Template saved to My Templates.', 'social-preview-designer' ),
+					'customEmpty'   => __( 'You have not saved any templates yet. Design one in the editor, then choose “Save as reusable template”.', 'social-preview-designer' ),
+					'rename'        => __( 'Rename', 'social-preview-designer' ),
+					'duplicate'     => __( 'Duplicate', 'social-preview-designer' ),
+					'delete'        => __( 'Delete', 'social-preview-designer' ),
+					'applyEdit'     => __( 'Apply & edit', 'social-preview-designer' ),
+					'preview'       => __( 'Preview', 'social-preview-designer' ),
+					'renamePrompt'  => __( 'Rename template', 'social-preview-designer' ),
+					'deleteConfirm' => __( 'Delete this template? This cannot be undone. Your current editor design is not affected.', 'social-preview-designer' ),
+					'save'          => __( 'Save', 'social-preview-designer' ),
+					'updatedLabel'  => __( 'Updated', 'social-preview-designer' ),
+					'thumbLoading'  => __( 'Loading preview…', 'social-preview-designer' ),
+					'thumbError'    => __( 'Preview unavailable', 'social-preview-designer' ),
+					'thumbRetry'    => __( 'Retry', 'social-preview-designer' ),
 					/* translators: %s: template name. */
-					'thumbAlt'      => __( 'Preview of %s', 'wp-remote-og-plugins' ),
-					'builtInHeading' => __( 'Built-in Templates', 'wp-remote-og-plugins' ),
-					'myTemplatesHeading' => __( 'My Templates', 'wp-remote-og-plugins' ),
-					'distractionFree' => __( 'Distraction-free', 'wp-remote-og-plugins' ),
-					'exitFullscreen' => __( 'Exit fullscreen', 'wp-remote-og-plugins' ),
-					'distractionFreeOn' => __( 'Distraction-free mode on.', 'wp-remote-og-plugins' ),
-					'distractionFreeOff' => __( 'Distraction-free mode off.', 'wp-remote-og-plugins' ),
+					'thumbAlt'      => __( 'Preview of %s', 'social-preview-designer' ),
+					'builtInHeading' => __( 'Built-in Templates', 'social-preview-designer' ),
+					'myTemplatesHeading' => __( 'My Templates', 'social-preview-designer' ),
+					'distractionFree' => __( 'Distraction-free', 'social-preview-designer' ),
+					'exitFullscreen' => __( 'Exit fullscreen', 'social-preview-designer' ),
+					'distractionFreeOn' => __( 'Distraction-free mode on.', 'social-preview-designer' ),
+					'distractionFreeOff' => __( 'Distraction-free mode off.', 'social-preview-designer' ),
 				),
 			)
 		);
@@ -3180,7 +3180,7 @@ final class WP_Remote_OG_Admin {
 
 		$activation_error = get_option( WP_Remote_OG_Plugin::OPTION_ACTIVATION_ERROR );
 		if ( $activation_error ) {
-			echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Social Preview Designer:', 'wp-remote-og-plugins' ) . '</strong> ' . esc_html( $activation_error ) . ' ' . esc_html__( 'Image generation will fail until the uploads directory is writable.', 'wp-remote-og-plugins' ) . '</p></div>';
+			echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Social Preview Designer:', 'social-preview-designer' ) . '</strong> ' . esc_html( $activation_error ) . ' ' . esc_html__( 'Image generation will fail until the uploads directory is writable.', 'social-preview-designer' ) . '</p></div>';
 			if ( ! is_wp_error( WP_Remote_OG_Uploads::ensure_directory() ) ) {
 				delete_option( WP_Remote_OG_Plugin::OPTION_ACTIVATION_ERROR );
 			}
@@ -3193,21 +3193,21 @@ final class WP_Remote_OG_Admin {
 
 		$diagnostics = WP_Remote_OG_Diagnostics::get();
 		if ( ! $diagnostics['imagick'] && $diagnostics['gd'] ) {
-			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Social Preview Designer is using GD fallback because Imagick is unavailable. Some rendering quality/features may be limited.', 'wp-remote-og-plugins' ) . '</p></div>';
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Social Preview Designer is using GD fallback because Imagick is unavailable. Some rendering quality/features may be limited.', 'social-preview-designer' ) . '</p></div>';
 		}
 
 		if ( ! $diagnostics['gd'] && ! $diagnostics['imagick'] ) {
-			echo '<div class="notice notice-error"><p>' . esc_html__( 'Social Preview Designer cannot generate images because neither Imagick nor GD is available.', 'wp-remote-og-plugins' ) . '</p></div>';
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Social Preview Designer cannot generate images because neither Imagick nor GD is available.', 'social-preview-designer' ) . '</p></div>';
 		}
 
 		if ( get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ) ) {
-			echo '<div class="notice notice-info wp-remote-og-template-dirty"><p><strong>' . esc_html__( 'Template changed. Regenerate all existing OG images now?', 'wp-remote-og-plugins' ) . '</strong> ';
-			echo '<a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=wp-remote-og-tools&wp_remote_og_prompt=1' ) ) . '">' . esc_html__( 'Open Generation Tools', 'wp-remote-og-plugins' ) . '</a></p></div>';
+			echo '<div class="notice notice-info wp-remote-og-template-dirty"><p><strong>' . esc_html__( 'Template changed. Regenerate all existing OG images now?', 'social-preview-designer' ) . '</strong> ';
+			echo '<a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=wp-remote-og-tools&wp_remote_og_prompt=1' ) ) . '">' . esc_html__( 'Open Generation Tools', 'social-preview-designer' ) . '</a></p></div>';
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag set by a nonce-verified redirect; no state change.
 		if ( isset( $_GET['wp_remote_og_imported'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['wp_remote_og_imported'] ) ) ) {
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Template imported successfully.', 'wp-remote-og-plugins' ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Template imported successfully.', 'social-preview-designer' ) . '</p></div>';
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag set by a nonce-verified redirect; no state change.
@@ -3215,14 +3215,14 @@ final class WP_Remote_OG_Admin {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag; sanitized and mapped to a fixed message list below.
 			$error = sanitize_text_field( wp_unslash( $_GET['wp_remote_og_import_error'] ) );
 			$messages = array(
-				'missing_file' => __( 'No template file was uploaded.', 'wp-remote-og-plugins' ),
-				'upload_error' => __( 'The template file could not be uploaded.', 'wp-remote-og-plugins' ),
-				'read_error'   => __( 'The template file could not be read.', 'wp-remote-og-plugins' ),
-				'too_large'    => __( 'The template file is too large (maximum 1 MB).', 'wp-remote-og-plugins' ),
-				'json_error'   => __( 'The template file is not valid JSON.', 'wp-remote-og-plugins' ),
-				'empty_layers'  => __( 'The template file does not contain any layers.', 'wp-remote-og-plugins' ),
+				'missing_file' => __( 'No template file was uploaded.', 'social-preview-designer' ),
+				'upload_error' => __( 'The template file could not be uploaded.', 'social-preview-designer' ),
+				'read_error'   => __( 'The template file could not be read.', 'social-preview-designer' ),
+				'too_large'    => __( 'The template file is too large (maximum 1 MB).', 'social-preview-designer' ),
+				'json_error'   => __( 'The template file is not valid JSON.', 'social-preview-designer' ),
+				'empty_layers'  => __( 'The template file does not contain any layers.', 'social-preview-designer' ),
 			);
-			$message = isset( $messages[ $error ] ) ? $messages[ $error ] : __( 'Template import failed.', 'wp-remote-og-plugins' );
+			$message = isset( $messages[ $error ] ) ? $messages[ $error ] : __( 'Template import failed.', 'social-preview-designer' );
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
 		}
 	}
@@ -3251,7 +3251,7 @@ final class WP_Remote_OG_Admin {
 
 	public static function export_template() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_die( esc_html__( 'You do not have permission to export templates.', 'wp-remote-og-plugins' ) );
+			wp_die( esc_html__( 'You do not have permission to export templates.', 'social-preview-designer' ) );
 		}
 
 		check_admin_referer( 'wp_remote_og_export_template' );
@@ -3274,7 +3274,7 @@ final class WP_Remote_OG_Admin {
 
 	public static function import_template() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_die( esc_html__( 'You do not have permission to import templates.', 'wp-remote-og-plugins' ) );
+			wp_die( esc_html__( 'You do not have permission to import templates.', 'social-preview-designer' ) );
 		}
 
 		check_admin_referer( 'wp_remote_og_import_template', 'wp_remote_og_import_nonce' );
@@ -3344,31 +3344,31 @@ final class WP_Remote_OG_Admin {
 		return array(
 			array(
 				'slug'  => self::DASHBOARD_SLUG,
-				'label' => __( 'Dashboard', 'wp-remote-og-plugins' ),
+				'label' => __( 'Dashboard', 'social-preview-designer' ),
 			),
 			array(
 				'slug'  => 'wp-remote-og-editor',
-				'label' => __( 'Template Editor', 'wp-remote-og-plugins' ),
+				'label' => __( 'Template Editor', 'social-preview-designer' ),
 			),
 			array(
 				'slug'  => 'wp-remote-og-templates',
-				'label' => __( 'Templates', 'wp-remote-og-plugins' ),
+				'label' => __( 'Templates', 'social-preview-designer' ),
 			),
 			array(
 				'slug'  => 'wp-remote-og-fields',
-				'label' => __( 'Dynamic Fields', 'wp-remote-og-plugins' ),
+				'label' => __( 'Dynamic Fields', 'social-preview-designer' ),
 			),
 			array(
 				'slug'  => 'wp-remote-og-fonts',
-				'label' => __( 'Fonts', 'wp-remote-og-plugins' ),
+				'label' => __( 'Fonts', 'social-preview-designer' ),
 			),
 			array(
 				'slug'  => 'wp-remote-og-tools',
-				'label' => __( 'Generation Tools', 'wp-remote-og-plugins' ),
+				'label' => __( 'Generation Tools', 'social-preview-designer' ),
 			),
 			array(
 				'slug'  => 'wp-remote-og-diagnostics',
-				'label' => __( 'Diagnostics', 'wp-remote-og-plugins' ),
+				'label' => __( 'Diagnostics', 'social-preview-designer' ),
 			),
 		);
 	}
@@ -3387,8 +3387,8 @@ final class WP_Remote_OG_Admin {
 	 */
 	private static function render_shell( $active ) {
 		echo '<div class="wpog-shell">';
-		echo '<div class="wpog-shell-brand"><span class="wpog-logo-wrap" aria-hidden="true">' . self::brand_mark() . '</span><span class="wpog-shell-name">' . esc_html__( 'Social Preview Designer', 'wp-remote-og-plugins' ) . '</span></div>';
-		echo '<nav class="wpog-nav" aria-label="' . esc_attr__( 'Social Preview Designer sections', 'wp-remote-og-plugins' ) . '">';
+		echo '<div class="wpog-shell-brand"><span class="wpog-logo-wrap" aria-hidden="true">' . self::brand_mark() . '</span><span class="wpog-shell-name">' . esc_html__( 'Social Preview Designer', 'social-preview-designer' ) . '</span></div>';
+		echo '<nav class="wpog-nav" aria-label="' . esc_attr__( 'Social Preview Designer sections', 'social-preview-designer' ) . '">';
 		foreach ( self::nav_items() as $item ) {
 			$is_active = $active === $item['slug'];
 			echo '<a class="wpog-nav-pill' . ( $is_active ? ' is-active' : '' ) . '"' . ( $is_active ? ' aria-current="page"' : '' ) . ' href="' . esc_url( admin_url( 'admin.php?page=' . $item['slug'] ) ) . '">' . esc_html( $item['label'] ) . '</a>';
@@ -3481,7 +3481,7 @@ final class WP_Remote_OG_Admin {
 		$tools_url  = admin_url( 'admin.php?page=wp-remote-og-tools' );
 
 		$engine_ok   = $diagnostics['imagick'] || $diagnostics['gd'];
-		$engine_text = $diagnostics['imagick'] ? __( 'Imagick ready', 'wp-remote-og-plugins' ) : ( $diagnostics['gd'] ? __( 'GD fallback', 'wp-remote-og-plugins' ) : __( 'No engine', 'wp-remote-og-plugins' ) );
+		$engine_text = $diagnostics['imagick'] ? __( 'Imagick ready', 'social-preview-designer' ) : ( $diagnostics['gd'] ? __( 'GD fallback', 'social-preview-designer' ) : __( 'No engine', 'social-preview-designer' ) );
 
 		$template     = WP_Remote_OG_Plugin::get_template();
 		$is_default   = WP_Remote_OG_Plugin::template_hash( $template ) === WP_Remote_OG_Plugin::template_hash( WP_Remote_OG_Plugin::default_template() );
@@ -3500,69 +3500,69 @@ final class WP_Remote_OG_Admin {
 
 		return array(
 			array(
-				'label' => __( 'Rendering engine', 'wp-remote-og-plugins' ),
+				'label' => __( 'Rendering engine', 'social-preview-designer' ),
 				'ok'    => $engine_ok,
 				'tone'  => $diagnostics['imagick'] ? 'good' : ( $diagnostics['gd'] ? 'warn' : 'bad' ),
 				'good'  => $engine_text,
-				'bad'   => __( 'Not available', 'wp-remote-og-plugins' ),
-				'hint'  => $engine_ok ? '' : __( 'Neither Imagick nor GD is available. Ask your host to enable one.', 'wp-remote-og-plugins' ),
+				'bad'   => __( 'Not available', 'social-preview-designer' ),
+				'hint'  => $engine_ok ? '' : __( 'Neither Imagick nor GD is available. Ask your host to enable one.', 'social-preview-designer' ),
 				'link'  => $tools_url,
-				'action'=> __( 'View diagnostics', 'wp-remote-og-plugins' ),
+				'action'=> __( 'View diagnostics', 'social-preview-designer' ),
 			),
 			array(
-				'label' => __( 'Uploads directory writable', 'wp-remote-og-plugins' ),
+				'label' => __( 'Uploads directory writable', 'social-preview-designer' ),
 				'ok'    => (bool) $diagnostics['upload_writable'],
-				'good'  => __( 'Writable', 'wp-remote-og-plugins' ),
-				'bad'   => __( 'Not writable', 'wp-remote-og-plugins' ),
-				'hint'  => $diagnostics['upload_writable'] ? '' : __( 'Generated images cannot be saved until the uploads directory is writable.', 'wp-remote-og-plugins' ),
+				'good'  => __( 'Writable', 'social-preview-designer' ),
+				'bad'   => __( 'Not writable', 'social-preview-designer' ),
+				'hint'  => $diagnostics['upload_writable'] ? '' : __( 'Generated images cannot be saved until the uploads directory is writable.', 'social-preview-designer' ),
 			),
 			array(
-				'label' => __( 'Template configured', 'wp-remote-og-plugins' ),
+				'label' => __( 'Template configured', 'social-preview-designer' ),
 				'ok'    => $template_ok,
 				'tone'  => 'warn',
-				'good'  => __( 'Customized', 'wp-remote-og-plugins' ),
-				'bad'   => __( 'Using default', 'wp-remote-og-plugins' ),
-				'hint'  => $template_ok ? '' : __( 'You are still using the starter template. Customize it or apply a preset.', 'wp-remote-og-plugins' ),
+				'good'  => __( 'Customized', 'social-preview-designer' ),
+				'bad'   => __( 'Using default', 'social-preview-designer' ),
+				'hint'  => $template_ok ? '' : __( 'You are still using the starter template. Customize it or apply a preset.', 'social-preview-designer' ),
 				'link'  => $editor_url,
-				'action'=> __( 'Edit template', 'wp-remote-og-plugins' ),
+				'action'=> __( 'Edit template', 'social-preview-designer' ),
 			),
 			array(
-				'label' => __( 'Dynamic fields mapped', 'wp-remote-og-plugins' ),
+				'label' => __( 'Dynamic fields mapped', 'social-preview-designer' ),
 				'ok'    => $mapped > 0,
 				'tone'  => 'warn',
 				/* translators: %d: number of mapped dynamic fields. */
-				'good'  => sprintf( _n( '%d field mapped', '%d fields mapped', $mapped, 'wp-remote-og-plugins' ), $mapped ),
-				'bad'   => __( 'Title only', 'wp-remote-og-plugins' ),
-				'hint'  => $mapped > 0 ? '' : __( 'Add taxonomy, ACF, or meta tokens to enrich your images.', 'wp-remote-og-plugins' ),
+				'good'  => sprintf( _n( '%d field mapped', '%d fields mapped', $mapped, 'social-preview-designer' ), $mapped ),
+				'bad'   => __( 'Title only', 'social-preview-designer' ),
+				'hint'  => $mapped > 0 ? '' : __( 'Add taxonomy, ACF, or meta tokens to enrich your images.', 'social-preview-designer' ),
 				'link'  => $fields_url,
-				'action'=> __( 'Configure fields', 'wp-remote-og-plugins' ),
+				'action'=> __( 'Configure fields', 'social-preview-designer' ),
 			),
 			array(
-				'label' => __( 'Rank Math integration', 'wp-remote-og-plugins' ),
+				'label' => __( 'Rank Math integration', 'social-preview-designer' ),
 				'ok'    => (bool) $diagnostics['rank_math'],
 				'tone'  => 'warn',
-				'good'  => __( 'Active', 'wp-remote-og-plugins' ),
-				'bad'   => __( 'Inactive', 'wp-remote-og-plugins' ),
-				'hint'  => $diagnostics['rank_math'] ? '' : __( 'Rank Math is optional. Generated images still work, but Rank Math lets them override the social image tags.', 'wp-remote-og-plugins' ),
+				'good'  => __( 'Active', 'social-preview-designer' ),
+				'bad'   => __( 'Inactive', 'social-preview-designer' ),
+				'hint'  => $diagnostics['rank_math'] ? '' : __( 'Rank Math is optional. Generated images still work, but Rank Math lets them override the social image tags.', 'social-preview-designer' ),
 			),
 			array(
-				'label' => __( 'ACF integration', 'wp-remote-og-plugins' ),
+				'label' => __( 'ACF integration', 'social-preview-designer' ),
 				'ok'    => (bool) $diagnostics['acf'],
 				'tone'  => 'warn',
-				'good'  => __( 'Active', 'wp-remote-og-plugins' ),
-				'bad'   => __( 'Inactive', 'wp-remote-og-plugins' ),
-				'hint'  => $diagnostics['acf'] ? '' : __( 'ACF is optional. {acf:*} tokens fall back to matching post meta when ACF is inactive.', 'wp-remote-og-plugins' ),
+				'good'  => __( 'Active', 'social-preview-designer' ),
+				'bad'   => __( 'Inactive', 'social-preview-designer' ),
+				'hint'  => $diagnostics['acf'] ? '' : __( 'ACF is optional. {acf:*} tokens fall back to matching post meta when ACF is inactive.', 'social-preview-designer' ),
 			),
 			array(
-				'label' => __( 'Custom fonts', 'wp-remote-og-plugins' ),
+				'label' => __( 'Custom fonts', 'social-preview-designer' ),
 				'ok'    => ! empty( $fonts ),
 				'tone'  => 'warn',
 				/* translators: %d: number of custom fonts. */
-				'good'  => sprintf( _n( '%d custom font', '%d custom fonts', count( $fonts ), 'wp-remote-og-plugins' ), count( $fonts ) ),
-				'bad'   => __( 'System font only', 'wp-remote-og-plugins' ),
-				'hint'  => empty( $fonts ) ? __( 'Add a brand font to make your previews unmistakable.', 'wp-remote-og-plugins' ) : '',
+				'good'  => sprintf( _n( '%d custom font', '%d custom fonts', count( $fonts ), 'social-preview-designer' ), count( $fonts ) ),
+				'bad'   => __( 'System font only', 'social-preview-designer' ),
+				'hint'  => empty( $fonts ) ? __( 'Add a brand font to make your previews unmistakable.', 'social-preview-designer' ) : '',
 				'link'  => $fonts_url,
-				'action'=> __( 'Manage fonts', 'wp-remote-og-plugins' ),
+				'action'=> __( 'Manage fonts', 'social-preview-designer' ),
 			),
 		);
 	}
@@ -3613,7 +3613,7 @@ final class WP_Remote_OG_Admin {
 
 	public static function render_dashboard_page() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'social-preview-designer' ) );
 		}
 
 		$diagnostics = WP_Remote_OG_Diagnostics::get();
@@ -3629,18 +3629,18 @@ final class WP_Remote_OG_Admin {
 		$templates_url = admin_url( 'admin.php?page=wp-remote-og-templates' );
 		$tools_url     = admin_url( 'admin.php?page=wp-remote-og-tools' );
 
-		$actions = '<a class="button button-primary" href="' . esc_url( $editor_url ) . '">' . esc_html__( 'Edit Template', 'wp-remote-og-plugins' ) . '</a>';
-		$actions .= '<a class="button" href="' . esc_url( $templates_url ) . '">' . esc_html__( 'Browse Templates', 'wp-remote-og-plugins' ) . '</a>';
+		$actions = '<a class="button button-primary" href="' . esc_url( $editor_url ) . '">' . esc_html__( 'Edit Template', 'social-preview-designer' ) . '</a>';
+		$actions .= '<a class="button" href="' . esc_url( $templates_url ) . '">' . esc_html__( 'Browse Templates', 'social-preview-designer' ) . '</a>';
 
-		self::page_open( self::DASHBOARD_SLUG, __( 'Dashboard', 'wp-remote-og-plugins' ), __( 'Your social preview image generation at a glance.', 'wp-remote-og-plugins' ), $actions );
+		self::page_open( self::DASHBOARD_SLUG, __( 'Dashboard', 'social-preview-designer' ), __( 'Your social preview image generation at a glance.', 'social-preview-designer' ), $actions );
 
 		if ( $dirty ) {
-			echo '<div class="wpog-notice is-info"><p><strong>' . esc_html__( 'Your template changed.', 'wp-remote-og-plugins' ) . '</strong> ' . esc_html__( 'Regenerate existing images so they match the new design.', 'wp-remote-og-plugins' ) . ' <a class="button button-small" href="' . esc_url( $tools_url . '&wp_remote_og_prompt=1' ) . '">' . esc_html__( 'Regenerate now', 'wp-remote-og-plugins' ) . '</a></p></div>';
+			echo '<div class="wpog-notice is-info"><p><strong>' . esc_html__( 'Your template changed.', 'social-preview-designer' ) . '</strong> ' . esc_html__( 'Regenerate existing images so they match the new design.', 'social-preview-designer' ) . ' <a class="button button-small" href="' . esc_url( $tools_url . '&wp_remote_og_prompt=1' ) . '">' . esc_html__( 'Regenerate now', 'social-preview-designer' ) . '</a></p></div>';
 		}
 		?>
 		<div class="wpog-grid wpog-grid-2">
 			<div class="wpog-card">
-				<h2 class="wpog-card-title"><?php esc_html_e( 'Setup checklist', 'wp-remote-og-plugins' ); ?></h2>
+				<h2 class="wpog-card-title"><?php esc_html_e( 'Setup checklist', 'social-preview-designer' ); ?></h2>
 				<ul class="wpog-checklist">
 					<?php foreach ( $readiness as $item ) : ?>
 						<?php $tone = isset( $item['tone'] ) ? $item['tone'] : 'bad'; ?>
@@ -3662,45 +3662,45 @@ final class WP_Remote_OG_Admin {
 			</div>
 
 			<div class="wpog-card">
-				<h2 class="wpog-card-title"><?php esc_html_e( 'Generation health', 'wp-remote-og-plugins' ); ?></h2>
+				<h2 class="wpog-card-title"><?php esc_html_e( 'Generation health', 'social-preview-designer' ); ?></h2>
 				<div class="wpog-stat-row">
 					<div class="wpog-stat">
 						<span class="wpog-stat-num"><?php echo esc_html( number_format_i18n( $generated ) ); ?></span>
-						<span class="wpog-stat-label"><?php esc_html_e( 'Images generated', 'wp-remote-og-plugins' ); ?></span>
+						<span class="wpog-stat-label"><?php esc_html_e( 'Images generated', 'social-preview-designer' ); ?></span>
 					</div>
 					<div class="wpog-stat">
 						<span class="wpog-stat-num"><?php echo esc_html( number_format_i18n( $missing ) ); ?></span>
-						<span class="wpog-stat-label"><?php esc_html_e( 'Published posts missing an image', 'wp-remote-og-plugins' ); ?></span>
+						<span class="wpog-stat-label"><?php esc_html_e( 'Published posts missing an image', 'social-preview-designer' ); ?></span>
 					</div>
 				</div>
 				<?php if ( $total > 0 ) : ?>
 					<?php $pct = (int) round( ( $generated / $total ) * 100 ); ?>
-					<div class="wpog-meter" role="img" aria-label="<?php echo esc_attr( sprintf( /* translators: %d: percent covered. */ __( '%d%% of published posts have a generated image.', 'wp-remote-og-plugins' ), $pct ) ); ?>">
+					<div class="wpog-meter" role="img" aria-label="<?php echo esc_attr( sprintf( /* translators: %d: percent covered. */ __( '%d%% of published posts have a generated image.', 'social-preview-designer' ), $pct ) ); ?>">
 						<span class="wpog-meter-fill" style="width:<?php echo esc_attr( $pct ); ?>%"></span>
 					</div>
-					<p class="wpog-stat-caption"><?php echo esc_html( sprintf( /* translators: %d: percent covered. */ __( '%d%% coverage across published posts.', 'wp-remote-og-plugins' ), $pct ) ); ?></p>
+					<p class="wpog-stat-caption"><?php echo esc_html( sprintf( /* translators: %d: percent covered. */ __( '%d%% coverage across published posts.', 'social-preview-designer' ), $pct ) ); ?></p>
 				<?php endif; ?>
 				<p class="wpog-stat-caption">
-					<strong><?php esc_html_e( 'Last bulk run:', 'wp-remote-og-plugins' ); ?></strong>
-					<?php echo esc_html( $last_bulk ? $last_bulk : __( 'No bulk run yet.', 'wp-remote-og-plugins' ) ); ?>
+					<strong><?php esc_html_e( 'Last bulk run:', 'social-preview-designer' ); ?></strong>
+					<?php echo esc_html( $last_bulk ? $last_bulk : __( 'No bulk run yet.', 'social-preview-designer' ) ); ?>
 				</p>
 				<p class="wpog-quick-actions">
-					<a class="button button-primary" href="<?php echo esc_url( $editor_url ); ?>"><?php esc_html_e( 'Edit Template', 'wp-remote-og-plugins' ); ?></a>
-					<a class="button" href="<?php echo esc_url( $templates_url ); ?>"><?php esc_html_e( 'Browse Templates', 'wp-remote-og-plugins' ); ?></a>
-					<a class="button" href="<?php echo esc_url( $tools_url ); ?>"><?php esc_html_e( 'Generate Missing Images', 'wp-remote-og-plugins' ); ?></a>
+					<a class="button button-primary" href="<?php echo esc_url( $editor_url ); ?>"><?php esc_html_e( 'Edit Template', 'social-preview-designer' ); ?></a>
+					<a class="button" href="<?php echo esc_url( $templates_url ); ?>"><?php esc_html_e( 'Browse Templates', 'social-preview-designer' ); ?></a>
+					<a class="button" href="<?php echo esc_url( $tools_url ); ?>"><?php esc_html_e( 'Generate Missing Images', 'social-preview-designer' ); ?></a>
 				</p>
 			</div>
 		</div>
 
 		<div class="wpog-card">
-			<h2 class="wpog-card-title"><?php esc_html_e( 'Recently generated', 'wp-remote-og-plugins' ); ?></h2>
+			<h2 class="wpog-card-title"><?php esc_html_e( 'Recently generated', 'social-preview-designer' ); ?></h2>
 			<?php if ( empty( $recent ) ) : ?>
 				<div class="wpog-empty">
-					<p class="wpog-empty-title"><?php esc_html_e( 'No social preview images yet.', 'wp-remote-og-plugins' ); ?></p>
-					<p><?php esc_html_e( 'Design your template, then generate images for your published posts to see them here.', 'wp-remote-og-plugins' ); ?></p>
+					<p class="wpog-empty-title"><?php esc_html_e( 'No social preview images yet.', 'social-preview-designer' ); ?></p>
+					<p><?php esc_html_e( 'Design your template, then generate images for your published posts to see them here.', 'social-preview-designer' ); ?></p>
 					<p class="wpog-quick-actions">
-						<a class="button button-primary" href="<?php echo esc_url( $editor_url ); ?>"><?php esc_html_e( 'Design your template', 'wp-remote-og-plugins' ); ?></a>
-						<a class="button" href="<?php echo esc_url( $tools_url ); ?>"><?php esc_html_e( 'Generate images', 'wp-remote-og-plugins' ); ?></a>
+						<a class="button button-primary" href="<?php echo esc_url( $editor_url ); ?>"><?php esc_html_e( 'Design your template', 'social-preview-designer' ); ?></a>
+						<a class="button" href="<?php echo esc_url( $tools_url ); ?>"><?php esc_html_e( 'Generate images', 'social-preview-designer' ); ?></a>
 					</p>
 				</div>
 			<?php else : ?>
@@ -3713,7 +3713,7 @@ final class WP_Remote_OG_Admin {
 							<figcaption>
 								<span class="wpog-recent-title"><?php echo esc_html( $item['title'] ); ?></span>
 								<?php if ( $item['edit'] ) : ?>
-									<a class="wpog-recent-link" href="<?php echo esc_url( $item['edit'] ); ?>"><?php esc_html_e( 'Open post to regenerate', 'wp-remote-og-plugins' ); ?></a>
+									<a class="wpog-recent-link" href="<?php echo esc_url( $item['edit'] ); ?>"><?php esc_html_e( 'Open post to regenerate', 'social-preview-designer' ); ?></a>
 								<?php endif; ?>
 							</figcaption>
 						</figure>
@@ -3727,7 +3727,7 @@ final class WP_Remote_OG_Admin {
 
 	public static function render_templates_page() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'social-preview-designer' ) );
 		}
 
 		$categories = WP_Remote_OG_Presets::categories();
@@ -3735,42 +3735,42 @@ final class WP_Remote_OG_Admin {
 		$has_backup = is_array( $backup ) && ! empty( $backup['template'] );
 		$backup_at  = $has_backup && ! empty( $backup['created_at'] ) ? $backup['created_at'] : '';
 
-		self::page_open( 'wp-remote-og-templates', __( 'Templates', 'wp-remote-og-plugins' ), __( 'Start from a polished preset, then customize it in the editor. Applying a preset replaces your current template.', 'wp-remote-og-plugins' ) );
+		self::page_open( 'wp-remote-og-templates', __( 'Templates', 'social-preview-designer' ), __( 'Start from a polished preset, then customize it in the editor. Applying a preset replaces your current template.', 'social-preview-designer' ) );
 		?>
 		<div class="wpog-notice is-info wp-remote-og-restore-notice"<?php echo $has_backup ? '' : ' hidden'; ?>>
 			<p>
-				<strong><?php esc_html_e( 'A previous template is saved.', 'wp-remote-og-plugins' ); ?></strong>
-				<span class="wp-remote-og-restore-meta"><?php echo $backup_at ? esc_html( sprintf( /* translators: %s: date/time. */ __( 'Backed up %s.', 'wp-remote-og-plugins' ), $backup_at ) ) : ''; ?></span>
-				<button type="button" class="button button-small" id="wp-remote-og-restore-backup"><?php esc_html_e( 'Restore previous template', 'wp-remote-og-plugins' ); ?></button>
+				<strong><?php esc_html_e( 'A previous template is saved.', 'social-preview-designer' ); ?></strong>
+				<span class="wp-remote-og-restore-meta"><?php echo $backup_at ? esc_html( sprintf( /* translators: %s: date/time. */ __( 'Backed up %s.', 'social-preview-designer' ), $backup_at ) ) : ''; ?></span>
+				<button type="button" class="button button-small" id="wp-remote-og-restore-backup"><?php esc_html_e( 'Restore previous template', 'social-preview-designer' ); ?></button>
 			</p>
 		</div>
 		<div class="wp-remote-og-gallery-status" id="wp-remote-og-gallery-status" aria-live="polite"></div>
 
 		<section class="wpog-templates-section" aria-labelledby="wpog-my-templates-heading">
-			<h2 class="wpog-templates-heading" id="wpog-my-templates-heading"><?php esc_html_e( 'My Templates', 'wp-remote-og-plugins' ); ?></h2>
-			<p class="wpog-templates-subhead"><?php esc_html_e( 'Reusable templates you saved from the editor. Apply one to make it your active design.', 'wp-remote-og-plugins' ); ?></p>
+			<h2 class="wpog-templates-heading" id="wpog-my-templates-heading"><?php esc_html_e( 'My Templates', 'social-preview-designer' ); ?></h2>
+			<p class="wpog-templates-subhead"><?php esc_html_e( 'Reusable templates you saved from the editor. Apply one to make it your active design.', 'social-preview-designer' ); ?></p>
 			<div class="wp-remote-og-custom-status" id="wp-remote-og-custom-status" aria-live="polite"></div>
-			<div class="wp-remote-og-custom-gallery" id="wp-remote-og-custom-gallery" role="list" aria-label="<?php esc_attr_e( 'My templates', 'wp-remote-og-plugins' ); ?>"></div>
+			<div class="wp-remote-og-custom-gallery" id="wp-remote-og-custom-gallery" role="list" aria-label="<?php esc_attr_e( 'My templates', 'social-preview-designer' ); ?>"></div>
 		</section>
 
 		<section class="wpog-templates-section" aria-labelledby="wpog-builtin-heading">
-			<h2 class="wpog-templates-heading" id="wpog-builtin-heading"><?php esc_html_e( 'Built-in Templates', 'wp-remote-og-plugins' ); ?></h2>
-			<div class="wp-remote-og-gallery-filters" role="group" aria-label="<?php esc_attr_e( 'Filter templates by category', 'wp-remote-og-plugins' ); ?>">
-				<button type="button" class="wpog-filter-pill is-active" data-category="all" aria-pressed="true"><?php esc_html_e( 'All', 'wp-remote-og-plugins' ); ?></button>
+			<h2 class="wpog-templates-heading" id="wpog-builtin-heading"><?php esc_html_e( 'Built-in Templates', 'social-preview-designer' ); ?></h2>
+			<div class="wp-remote-og-gallery-filters" role="group" aria-label="<?php esc_attr_e( 'Filter templates by category', 'social-preview-designer' ); ?>">
+				<button type="button" class="wpog-filter-pill is-active" data-category="all" aria-pressed="true"><?php esc_html_e( 'All', 'social-preview-designer' ); ?></button>
 				<?php foreach ( $categories as $category ) : ?>
 					<button type="button" class="wpog-filter-pill" data-category="<?php echo esc_attr( $category ); ?>" aria-pressed="false"><?php echo esc_html( $category ); ?></button>
 				<?php endforeach; ?>
 			</div>
-			<div class="wp-remote-og-gallery" id="wp-remote-og-gallery" role="list" aria-label="<?php esc_attr_e( 'Template presets', 'wp-remote-og-plugins' ); ?>"></div>
+			<div class="wp-remote-og-gallery" id="wp-remote-og-gallery" role="list" aria-label="<?php esc_attr_e( 'Template presets', 'social-preview-designer' ); ?>"></div>
 		</section>
 
 		<div class="wp-remote-og-name-modal" id="wp-remote-og-name-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-name-modal-title" hidden>
 			<div class="wp-remote-og-preset-modal-backdrop" data-name-close="1"></div>
 			<div class="wp-remote-og-preset-modal-panel wp-remote-og-name-modal-panel">
-				<button type="button" class="wp-remote-og-preset-modal-close" data-name-close="1" aria-label="<?php esc_attr_e( 'Close', 'wp-remote-og-plugins' ); ?>">&times;</button>
+				<button type="button" class="wp-remote-og-preset-modal-close" data-name-close="1" aria-label="<?php esc_attr_e( 'Close', 'social-preview-designer' ); ?>">&times;</button>
 				<h2 id="wp-remote-og-name-modal-title" class="wp-remote-og-preset-modal-heading"></h2>
 				<p id="wp-remote-og-name-modal-desc" class="wp-remote-og-preset-modal-desc"></p>
-				<label class="wpog-name-field" for="wp-remote-og-name-input"><span class="screen-reader-text"><?php esc_html_e( 'Template name', 'wp-remote-og-plugins' ); ?></span>
+				<label class="wpog-name-field" for="wp-remote-og-name-input"><span class="screen-reader-text"><?php esc_html_e( 'Template name', 'social-preview-designer' ); ?></span>
 					<input type="text" id="wp-remote-og-name-input" maxlength="100" autocomplete="off">
 				</label>
 				<p class="wpog-name-error" id="wp-remote-og-name-error" role="alert" aria-live="assertive"></p>
@@ -3783,7 +3783,7 @@ final class WP_Remote_OG_Admin {
 		<div class="wp-remote-og-preset-modal" id="wp-remote-og-preset-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-preset-modal-title" aria-describedby="wp-remote-og-preset-modal-desc" hidden>
 			<div class="wp-remote-og-preset-modal-backdrop" data-modal-close="1"></div>
 			<div class="wp-remote-og-preset-modal-panel">
-				<button type="button" class="wp-remote-og-preset-modal-close" data-modal-close="1" aria-label="<?php esc_attr_e( 'Close', 'wp-remote-og-plugins' ); ?>">&times;</button>
+				<button type="button" class="wp-remote-og-preset-modal-close" data-modal-close="1" aria-label="<?php esc_attr_e( 'Close', 'social-preview-designer' ); ?>">&times;</button>
 				<h2 id="wp-remote-og-preset-modal-title" class="wp-remote-og-preset-modal-heading"></h2>
 				<p id="wp-remote-og-preset-modal-desc" class="wp-remote-og-preset-modal-desc"></p>
 				<div class="wp-remote-og-preset-modal-preview"></div>
@@ -3799,7 +3799,7 @@ final class WP_Remote_OG_Admin {
 
 	public static function render_template_page() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'social-preview-designer' ) );
 		}
 
 		$template = WP_Remote_OG_Plugin::get_template();
@@ -3813,35 +3813,35 @@ final class WP_Remote_OG_Admin {
 
 			<div class="wpog-editor-bar">
 				<div class="wpog-editor-bar-left">
-					<h1 class="wpog-editor-title"><?php esc_html_e( 'Template Editor', 'wp-remote-og-plugins' ); ?></h1>
-					<span class="wpog-dirty" id="wp-remote-og-dirty-indicator" data-saved-label="<?php esc_attr_e( 'All changes saved', 'wp-remote-og-plugins' ); ?>" data-unsaved-label="<?php esc_attr_e( 'Unsaved changes', 'wp-remote-og-plugins' ); ?>"><?php esc_html_e( 'All changes saved', 'wp-remote-og-plugins' ); ?></span>
+					<h1 class="wpog-editor-title"><?php esc_html_e( 'Template Editor', 'social-preview-designer' ); ?></h1>
+					<span class="wpog-dirty" id="wp-remote-og-dirty-indicator" data-saved-label="<?php esc_attr_e( 'All changes saved', 'social-preview-designer' ); ?>" data-unsaved-label="<?php esc_attr_e( 'Unsaved changes', 'social-preview-designer' ); ?>"><?php esc_html_e( 'All changes saved', 'social-preview-designer' ); ?></span>
 				</div>
 				<div class="wpog-editor-bar-right">
-					<label class="screen-reader-text" for="wp-remote-og-preview-post"><?php esc_html_e( 'Preview post', 'wp-remote-og-plugins' ); ?></label>
+					<label class="screen-reader-text" for="wp-remote-og-preview-post"><?php esc_html_e( 'Preview post', 'social-preview-designer' ); ?></label>
 					<select id="wp-remote-og-preview-post" class="wpog-preview-select">
-						<option value=""><?php esc_html_e( 'Use a post to preview…', 'wp-remote-og-plugins' ); ?></option>
+						<option value=""><?php esc_html_e( 'Use a post to preview…', 'social-preview-designer' ); ?></option>
 						<?php foreach ( $posts as $post ) : ?>
 							<option value="<?php echo esc_attr( $post['id'] ); ?>"><?php echo esc_html( $post['title'] ); ?></option>
 						<?php endforeach; ?>
 					</select>
-					<button type="button" class="wpog-icon-btn" id="wp-remote-og-refresh-preview" title="<?php esc_attr_e( 'Refresh preview', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Refresh preview', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'refresh' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+					<button type="button" class="wpog-icon-btn" id="wp-remote-og-refresh-preview" title="<?php esc_attr_e( 'Refresh preview', 'social-preview-designer' ); ?>" aria-label="<?php esc_attr_e( 'Refresh preview', 'social-preview-designer' ); ?>"><?php echo self::icon( 'refresh' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
 					<div class="wpog-overflow" data-overflow>
-						<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'More actions', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'More actions', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'more' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+						<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'More actions', 'social-preview-designer' ); ?>" aria-label="<?php esc_attr_e( 'More actions', 'social-preview-designer' ); ?>"><?php echo self::icon( 'more' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
 						<div class="wpog-overflow-menu" hidden>
-							<button type="button" class="wpog-overflow-item" id="wp-remote-og-save-as-template" hidden><?php esc_html_e( 'Save a copy…', 'wp-remote-og-plugins' ); ?></button>
-							<button type="button" class="wpog-overflow-item" id="wp-remote-og-background"><?php esc_html_e( 'Select background image', 'wp-remote-og-plugins' ); ?></button>
-							<a class="wpog-overflow-item" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export template (JSON)', 'wp-remote-og-plugins' ); ?></a>
+							<button type="button" class="wpog-overflow-item" id="wp-remote-og-save-as-template" hidden><?php esc_html_e( 'Save a copy…', 'social-preview-designer' ); ?></button>
+							<button type="button" class="wpog-overflow-item" id="wp-remote-og-background"><?php esc_html_e( 'Select background image', 'social-preview-designer' ); ?></button>
+							<a class="wpog-overflow-item" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export template (JSON)', 'social-preview-designer' ); ?></a>
 							<form class="wp-remote-og-import-template wpog-overflow-import" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" enctype="multipart/form-data">
 								<input type="hidden" name="action" value="wp_remote_og_import_template">
 								<?php wp_nonce_field( 'wp_remote_og_import_template', 'wp_remote_og_import_nonce' ); ?>
-								<label class="wpog-overflow-item-label" for="wp-remote-og-import-file"><?php esc_html_e( 'Import template', 'wp-remote-og-plugins' ); ?></label>
+								<label class="wpog-overflow-item-label" for="wp-remote-og-import-file"><?php esc_html_e( 'Import template', 'social-preview-designer' ); ?></label>
 								<input type="file" id="wp-remote-og-import-file" name="wp_remote_og_template_file" accept="application/json,.json" required>
-								<button type="submit" class="button button-small"><?php esc_html_e( 'Import', 'wp-remote-og-plugins' ); ?></button>
+								<button type="submit" class="button button-small"><?php esc_html_e( 'Import', 'social-preview-designer' ); ?></button>
 							</form>
 						</div>
 					</div>
-					<button type="button" class="wpog-icon-btn wpog-distraction-toggle" id="wp-remote-og-distraction-free" aria-pressed="false" data-on-label="<?php esc_attr_e( 'Exit fullscreen', 'wp-remote-og-plugins' ); ?>" data-off-label="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>" title="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Distraction-free', 'wp-remote-og-plugins' ); ?>"><span class="wpog-icon-expand" aria-hidden="true"><?php echo self::icon( 'expand' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span><span class="wpog-icon-compress" aria-hidden="true"><?php echo self::icon( 'compress' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span></button>
-					<button type="button" class="button button-primary wpog-save-btn" id="wp-remote-og-save-template"><?php echo self::icon( 'save' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span><?php esc_html_e( 'Save', 'wp-remote-og-plugins' ); ?></span></button>
+					<button type="button" class="wpog-icon-btn wpog-distraction-toggle" id="wp-remote-og-distraction-free" aria-pressed="false" data-on-label="<?php esc_attr_e( 'Exit fullscreen', 'social-preview-designer' ); ?>" data-off-label="<?php esc_attr_e( 'Distraction-free', 'social-preview-designer' ); ?>" title="<?php esc_attr_e( 'Distraction-free', 'social-preview-designer' ); ?>" aria-label="<?php esc_attr_e( 'Distraction-free', 'social-preview-designer' ); ?>"><span class="wpog-icon-expand" aria-hidden="true"><?php echo self::icon( 'expand' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span><span class="wpog-icon-compress" aria-hidden="true"><?php echo self::icon( 'compress' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span></button>
+					<button type="button" class="button button-primary wpog-save-btn" id="wp-remote-og-save-template"><?php echo self::icon( 'save' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span><?php esc_html_e( 'Save', 'social-preview-designer' ); ?></span></button>
 				</div>
 			</div>
 
@@ -3849,27 +3849,27 @@ final class WP_Remote_OG_Admin {
 				<div class="wpog-workspace">
 					<aside class="wpog-panel wpog-panel-left">
 						<div class="wpog-panel-head">
-							<span class="wpog-panel-title"><?php esc_html_e( 'Structure', 'wp-remote-og-plugins' ); ?></span>
+							<span class="wpog-panel-title"><?php esc_html_e( 'Structure', 'social-preview-designer' ); ?></span>
 							<div class="wpog-panel-tools">
 								<div class="wpog-overflow wpog-add-wrap" data-overflow>
-									<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'Add layer', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Add layer', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'plus' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+									<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'Add layer', 'social-preview-designer' ); ?>" aria-label="<?php esc_attr_e( 'Add layer', 'social-preview-designer' ); ?>"><?php echo self::icon( 'plus' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
 									<div class="wpog-overflow-menu" hidden>
-										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-layer"><?php echo self::icon( 'text' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Text layer', 'wp-remote-og-plugins' ); ?></button>
-										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-image-layer"><?php echo self::icon( 'image' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Image layer', 'wp-remote-og-plugins' ); ?></button>
-										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-horizontal-line"><?php echo self::icon( 'line' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Horizontal line', 'wp-remote-og-plugins' ); ?></button>
-										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-vertical-line"><?php echo self::icon( 'line' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Vertical line', 'wp-remote-og-plugins' ); ?></button>
+										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-layer"><?php echo self::icon( 'text' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Text layer', 'social-preview-designer' ); ?></button>
+										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-image-layer"><?php echo self::icon( 'image' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Image layer', 'social-preview-designer' ); ?></button>
+										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-horizontal-line"><?php echo self::icon( 'line' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Horizontal line', 'social-preview-designer' ); ?></button>
+										<button type="button" class="wpog-overflow-item" id="wp-remote-og-add-vertical-line"><?php echo self::icon( 'line' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Vertical line', 'social-preview-designer' ); ?></button>
 									</div>
 								</div>
-								<button type="button" class="wpog-icon-btn" id="wp-remote-og-undo" title="<?php esc_attr_e( 'Undo', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Undo', 'wp-remote-og-plugins' ); ?>" disabled><?php echo self::icon( 'undo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
-								<button type="button" class="wpog-icon-btn" id="wp-remote-og-redo" title="<?php esc_attr_e( 'Redo', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Redo', 'wp-remote-og-plugins' ); ?>" disabled><?php echo self::icon( 'redo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+								<button type="button" class="wpog-icon-btn" id="wp-remote-og-undo" title="<?php esc_attr_e( 'Undo', 'social-preview-designer' ); ?>" aria-label="<?php esc_attr_e( 'Undo', 'social-preview-designer' ); ?>" disabled><?php echo self::icon( 'undo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+								<button type="button" class="wpog-icon-btn" id="wp-remote-og-redo" title="<?php esc_attr_e( 'Redo', 'social-preview-designer' ); ?>" aria-label="<?php esc_attr_e( 'Redo', 'social-preview-designer' ); ?>" disabled><?php echo self::icon( 'redo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
 							</div>
 						</div>
-						<ul id="wp-remote-og-layer-list" class="wp-remote-og-layer-list" role="listbox" aria-label="<?php esc_attr_e( 'Layers', 'wp-remote-og-plugins' ); ?>"></ul>
+						<ul id="wp-remote-og-layer-list" class="wp-remote-og-layer-list" role="listbox" aria-label="<?php esc_attr_e( 'Layers', 'social-preview-designer' ); ?>"></ul>
 					</aside>
 
 					<section class="wpog-canvas-zone">
 						<div class="wp-remote-og-canvas-frame">
-							<div id="wp-remote-og-canvas" class="wp-remote-og-canvas" aria-label="<?php esc_attr_e( 'OG image canvas', 'wp-remote-og-plugins' ); ?>">
+							<div id="wp-remote-og-canvas" class="wp-remote-og-canvas" aria-label="<?php esc_attr_e( 'OG image canvas', 'social-preview-designer' ); ?>">
 								<div class="wp-remote-og-safe-area"></div>
 								<div id="wp-remote-og-layer-stage"></div>
 							</div>
@@ -3879,34 +3879,34 @@ final class WP_Remote_OG_Admin {
 
 					<aside class="wpog-panel wpog-panel-right">
 						<div class="wp-remote-og-controls wpog-inspector">
-							<div class="wpog-inspector-empty" id="wp-remote-og-inspector-empty"><?php esc_html_e( 'Select a layer to edit its properties.', 'wp-remote-og-plugins' ); ?></div>
+							<div class="wpog-inspector-empty" id="wp-remote-og-inspector-empty"><?php esc_html_e( 'Select a layer to edit its properties.', 'social-preview-designer' ); ?></div>
 							<div class="wpog-inspector-body" id="wp-remote-og-inspector-body">
 								<div class="wpog-inspector-head">
 									<span class="wpog-inspector-name" id="wp-remote-og-inspector-name"></span>
 									<div class="wpog-overflow wpog-inspector-overflow" data-overflow>
-										<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'Layer actions', 'wp-remote-og-plugins' ); ?>" aria-label="<?php esc_attr_e( 'Layer actions', 'wp-remote-og-plugins' ); ?>"><?php echo self::icon( 'more' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+										<button type="button" class="wpog-icon-btn" data-overflow-toggle aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e( 'Layer actions', 'social-preview-designer' ); ?>" aria-label="<?php esc_attr_e( 'Layer actions', 'social-preview-designer' ); ?>"><?php echo self::icon( 'more' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
 										<div class="wpog-overflow-menu" hidden>
-											<button type="button" class="wpog-overflow-item" id="wp-remote-og-duplicate-layer"><?php echo self::icon( 'copy' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Duplicate layer', 'wp-remote-og-plugins' ); ?></button>
-											<button type="button" class="wpog-overflow-item is-danger" id="wp-remote-og-delete-layer"><?php echo self::icon( 'trash' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Delete layer', 'wp-remote-og-plugins' ); ?></button>
+											<button type="button" class="wpog-overflow-item" id="wp-remote-og-duplicate-layer"><?php echo self::icon( 'copy' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Duplicate layer', 'social-preview-designer' ); ?></button>
+											<button type="button" class="wpog-overflow-item is-danger" id="wp-remote-og-delete-layer"><?php echo self::icon( 'trash' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Delete layer', 'social-preview-designer' ); ?></button>
 										</div>
 									</div>
 								</div>
 
 								<details class="wpog-section" open>
-									<summary class="wpog-section-summary"><?php esc_html_e( 'Content & Tokens', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Content & Tokens', 'social-preview-designer' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
 									<div class="wpog-section-body">
-										<label><?php esc_html_e( 'Layer type', 'wp-remote-og-plugins' ); ?>
+										<label><?php esc_html_e( 'Layer type', 'social-preview-designer' ); ?>
 											<select id="wp-remote-og-layer-type">
-												<option value="text"><?php esc_html_e( 'Text Layer', 'wp-remote-og-plugins' ); ?></option>
-												<option value="image"><?php esc_html_e( 'Image Layer', 'wp-remote-og-plugins' ); ?></option>
-												<option value="line"><?php esc_html_e( 'Line Layer', 'wp-remote-og-plugins' ); ?></option>
+												<option value="text"><?php esc_html_e( 'Text Layer', 'social-preview-designer' ); ?></option>
+												<option value="image"><?php esc_html_e( 'Image Layer', 'social-preview-designer' ); ?></option>
+												<option value="line"><?php esc_html_e( 'Line Layer', 'social-preview-designer' ); ?></option>
 											</select>
 										</label>
 										<div class="wp-remote-og-content-controls">
-											<label><?php esc_html_e( 'Content / token', 'wp-remote-og-plugins' ); ?><input type="text" id="wp-remote-og-layer-content"></label>
-											<label><?php esc_html_e( 'Insert dynamic field', 'wp-remote-og-plugins' ); ?>
+											<label><?php esc_html_e( 'Content / token', 'social-preview-designer' ); ?><input type="text" id="wp-remote-og-layer-content"></label>
+											<label><?php esc_html_e( 'Insert dynamic field', 'social-preview-designer' ); ?>
 												<select id="wp-remote-og-token-picker">
-													<option value=""><?php esc_html_e( 'Choose token', 'wp-remote-og-plugins' ); ?></option>
+													<option value=""><?php esc_html_e( 'Choose token', 'social-preview-designer' ); ?></option>
 													<?php foreach ( $fields as $field ) : ?>
 														<?php if ( empty( $field['enabled'] ) ) { continue; } ?>
 													<option value="<?php echo esc_attr( $field['token'] ); ?>"><?php echo esc_html( $field['label'] . ' — ' . $field['token'] ); ?></option>
@@ -3915,9 +3915,9 @@ final class WP_Remote_OG_Admin {
 											</label>
 										</div>
 										<div class="wp-remote-og-visibility-controls">
-											<label><?php esc_html_e( 'Show layer only when', 'wp-remote-og-plugins' ); ?>
+											<label><?php esc_html_e( 'Show layer only when', 'social-preview-designer' ); ?>
 												<select id="wp-remote-og-layer-requires-token">
-													<option value=""><?php esc_html_e( 'Always show', 'wp-remote-og-plugins' ); ?></option>
+													<option value=""><?php esc_html_e( 'Always show', 'social-preview-designer' ); ?></option>
 													<?php foreach ( $fields as $field ) : ?>
 														<?php if ( empty( $field['enabled'] ) ) { continue; } ?>
 													<option value="<?php echo esc_attr( $field['token'] ); ?>"><?php echo esc_html( $field['label'] . ' — ' . $field['token'] ); ?></option>
@@ -3929,85 +3929,85 @@ final class WP_Remote_OG_Admin {
 								</details>
 
 								<details class="wpog-section wp-remote-og-text-controls" open>
-									<summary class="wpog-section-summary"><?php esc_html_e( 'Typography', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Typography', 'social-preview-designer' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
 									<div class="wpog-section-body">
-										<label><?php esc_html_e( 'Font', 'wp-remote-og-plugins' ); ?>
+										<label><?php esc_html_e( 'Font', 'social-preview-designer' ); ?>
 											<select id="wp-remote-og-layer-font">
-												<option value=""><?php esc_html_e( 'System font', 'wp-remote-og-plugins' ); ?></option>
+												<option value=""><?php esc_html_e( 'System font', 'social-preview-designer' ); ?></option>
 												<?php foreach ( $fonts as $font ) : ?>
-													<option value="<?php echo esc_attr( $font['id'] ); ?>"><?php echo esc_html( $font['label'] ); ?><?php echo empty( $font['renderable'] ) ? esc_html__( ' (preview only)', 'wp-remote-og-plugins' ): ''; ?></option>
+													<option value="<?php echo esc_attr( $font['id'] ); ?>"><?php echo esc_html( $font['label'] ); ?><?php echo empty( $font['renderable'] ) ? esc_html__( ' (preview only)', 'social-preview-designer' ): ''; ?></option>
 												<?php endforeach; ?>
 											</select>
 										</label>
 										<div class="wp-remote-og-control-row">
-											<label><?php esc_html_e( 'Font size', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-font-size" min="8" max="180"></label>
-											<label><?php esc_html_e( 'Min size', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-min-font-size" min="6" max="180"></label>
+											<label><?php esc_html_e( 'Font size', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-font-size" min="8" max="180"></label>
+											<label><?php esc_html_e( 'Min size', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-min-font-size" min="6" max="180"></label>
 										</div>
-										<label><?php esc_html_e( 'Align', 'wp-remote-og-plugins' ); ?>
+										<label><?php esc_html_e( 'Align', 'social-preview-designer' ); ?>
 											<select id="wp-remote-og-layer-align">
-												<option value="left"><?php esc_html_e( 'Left', 'wp-remote-og-plugins' ); ?></option>
-												<option value="center"><?php esc_html_e( 'Center', 'wp-remote-og-plugins' ); ?></option>
-												<option value="right"><?php esc_html_e( 'Right', 'wp-remote-og-plugins' ); ?></option>
+												<option value="left"><?php esc_html_e( 'Left', 'social-preview-designer' ); ?></option>
+												<option value="center"><?php esc_html_e( 'Center', 'social-preview-designer' ); ?></option>
+												<option value="right"><?php esc_html_e( 'Right', 'social-preview-designer' ); ?></option>
 											</select>
 										</label>
 										<div class="wp-remote-og-control-row">
-											<label><?php esc_html_e( 'Line height', 'wp-remote-og-plugins' ); ?><input type="number" step="0.05" id="wp-remote-og-layer-line-height" min="0.8" max="2.5"></label>
-											<label><?php esc_html_e( 'Max lines', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-max-lines" min="1" max="12"></label>
+											<label><?php esc_html_e( 'Line height', 'social-preview-designer' ); ?><input type="number" step="0.05" id="wp-remote-og-layer-line-height" min="0.8" max="2.5"></label>
+											<label><?php esc_html_e( 'Max lines', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-max-lines" min="1" max="12"></label>
 										</div>
 									</div>
 								</details>
 
 								<details class="wpog-section wp-remote-og-image-controls">
-									<summary class="wpog-section-summary"><?php esc_html_e( 'Image', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Image', 'social-preview-designer' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
 									<div class="wpog-section-body">
-										<button type="button" class="button button-secondary" id="wp-remote-og-layer-select-image"><?php esc_html_e( 'Select image', 'wp-remote-og-plugins' ); ?></button>
-										<label><?php esc_html_e( 'Shape', 'wp-remote-og-plugins' ); ?>
+										<button type="button" class="button button-secondary" id="wp-remote-og-layer-select-image"><?php esc_html_e( 'Select image', 'social-preview-designer' ); ?></button>
+										<label><?php esc_html_e( 'Shape', 'social-preview-designer' ); ?>
 											<select id="wp-remote-og-layer-image-shape">
-												<option value="square"><?php esc_html_e( 'Square', 'wp-remote-og-plugins' ); ?></option>
-												<option value="rounded"><?php esc_html_e( 'Rounded', 'wp-remote-og-plugins' ); ?></option>
-												<option value="circle"><?php esc_html_e( 'Circle', 'wp-remote-og-plugins' ); ?></option>
+												<option value="square"><?php esc_html_e( 'Square', 'social-preview-designer' ); ?></option>
+												<option value="rounded"><?php esc_html_e( 'Rounded', 'social-preview-designer' ); ?></option>
+												<option value="circle"><?php esc_html_e( 'Circle', 'social-preview-designer' ); ?></option>
 											</select>
 										</label>
-										<label><?php esc_html_e( 'Fit', 'wp-remote-og-plugins' ); ?>
+										<label><?php esc_html_e( 'Fit', 'social-preview-designer' ); ?>
 											<select id="wp-remote-og-layer-image-fit">
-												<option value="contain"><?php esc_html_e( 'Contain', 'wp-remote-og-plugins' ); ?></option>
-												<option value="cover"><?php esc_html_e( 'Cover', 'wp-remote-og-plugins' ); ?></option>
-												<option value="stretch"><?php esc_html_e( 'Stretch', 'wp-remote-og-plugins' ); ?></option>
+												<option value="contain"><?php esc_html_e( 'Contain', 'social-preview-designer' ); ?></option>
+												<option value="cover"><?php esc_html_e( 'Cover', 'social-preview-designer' ); ?></option>
+												<option value="stretch"><?php esc_html_e( 'Stretch', 'social-preview-designer' ); ?></option>
 											</select>
 										</label>
 									</div>
 								</details>
 
 								<details class="wpog-section wp-remote-og-line-controls">
-									<summary class="wpog-section-summary"><?php esc_html_e( 'Line', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Line', 'social-preview-designer' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
 									<div class="wpog-section-body">
-										<label><?php esc_html_e( 'Direction', 'wp-remote-og-plugins' ); ?>
+										<label><?php esc_html_e( 'Direction', 'social-preview-designer' ); ?>
 											<select id="wp-remote-og-layer-line-orientation">
-												<option value="horizontal"><?php esc_html_e( 'Horizontal', 'wp-remote-og-plugins' ); ?></option>
-												<option value="vertical"><?php esc_html_e( 'Vertical', 'wp-remote-og-plugins' ); ?></option>
+												<option value="horizontal"><?php esc_html_e( 'Horizontal', 'social-preview-designer' ); ?></option>
+												<option value="vertical"><?php esc_html_e( 'Vertical', 'social-preview-designer' ); ?></option>
 											</select>
 										</label>
 									</div>
 								</details>
 
 								<details class="wpog-section" open>
-									<summary class="wpog-section-summary"><?php esc_html_e( 'Position & Size', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Position & Size', 'social-preview-designer' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
 									<div class="wpog-section-body">
 										<div class="wp-remote-og-control-row">
-											<label><?php esc_html_e( 'X', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-x" min="0" max="1200"></label>
-											<label><?php esc_html_e( 'Y', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-y" min="0" max="630"></label>
+											<label><?php esc_html_e( 'X', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-x" min="0" max="1200"></label>
+											<label><?php esc_html_e( 'Y', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-y" min="0" max="630"></label>
 										</div>
 										<div class="wp-remote-og-control-row">
-											<label><?php esc_html_e( 'Width', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-width" min="20" max="1200"></label>
-											<label><?php esc_html_e( 'Height', 'wp-remote-og-plugins' ); ?><input type="number" id="wp-remote-og-layer-height" min="20" max="630"></label>
+											<label><?php esc_html_e( 'Width', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-width" min="20" max="1200"></label>
+											<label><?php esc_html_e( 'Height', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-height" min="20" max="630"></label>
 										</div>
 									</div>
 								</details>
 
 								<details class="wpog-section wp-remote-og-color-controls" open>
-									<summary class="wpog-section-summary"><?php esc_html_e( 'Appearance', 'wp-remote-og-plugins' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
+									<summary class="wpog-section-summary"><?php esc_html_e( 'Appearance', 'social-preview-designer' ); ?><?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></summary>
 									<div class="wpog-section-body">
-										<label><?php esc_html_e( 'Color', 'wp-remote-og-plugins' ); ?><input type="text" id="wp-remote-og-layer-color" class="wp-remote-og-color" value="#111827"></label>
+										<label><?php esc_html_e( 'Color', 'social-preview-designer' ); ?><input type="text" id="wp-remote-og-layer-color" class="wp-remote-og-color" value="#111827"></label>
 									</div>
 								</details>
 							</div>
@@ -4020,10 +4020,10 @@ final class WP_Remote_OG_Admin {
 			<div class="wp-remote-og-name-modal" id="wp-remote-og-name-modal" role="dialog" aria-modal="true" aria-labelledby="wp-remote-og-name-modal-title" hidden>
 				<div class="wp-remote-og-preset-modal-backdrop" data-name-close="1"></div>
 				<div class="wp-remote-og-preset-modal-panel wp-remote-og-name-modal-panel">
-					<button type="button" class="wp-remote-og-preset-modal-close" data-name-close="1" aria-label="<?php esc_attr_e( 'Close', 'wp-remote-og-plugins' ); ?>">&times;</button>
+					<button type="button" class="wp-remote-og-preset-modal-close" data-name-close="1" aria-label="<?php esc_attr_e( 'Close', 'social-preview-designer' ); ?>">&times;</button>
 					<h2 id="wp-remote-og-name-modal-title" class="wp-remote-og-preset-modal-heading"></h2>
 					<p id="wp-remote-og-name-modal-desc" class="wp-remote-og-preset-modal-desc"></p>
-					<label class="wpog-name-field" for="wp-remote-og-name-input"><span class="screen-reader-text"><?php esc_html_e( 'Template name', 'wp-remote-og-plugins' ); ?></span>
+					<label class="wpog-name-field" for="wp-remote-og-name-input"><span class="screen-reader-text"><?php esc_html_e( 'Template name', 'social-preview-designer' ); ?></span>
 						<input type="text" id="wp-remote-og-name-input" maxlength="100" autocomplete="off">
 					</label>
 					<p class="wpog-name-error" id="wp-remote-og-name-error" role="alert" aria-live="assertive"></p>
@@ -4039,18 +4039,18 @@ final class WP_Remote_OG_Admin {
 
 	public static function render_fields_page() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'social-preview-designer' ) );
 		}
 
 		$saved_notice = '';
 		if ( isset( $_POST['wp_remote_og_fields_nonce'] ) && check_admin_referer( 'wp_remote_og_dynamic_fields', 'wp_remote_og_fields_nonce' ) ) {
 			$fields = isset( $_POST['fields'] ) && is_array( $_POST['fields'] ) ? map_deep( wp_unslash( $_POST['fields'] ), 'sanitize_text_field' ) : array();
 			WP_Remote_OG_Plugin::save_dynamic_fields( $fields );
-			$saved_notice = __( 'Dynamic fields saved.', 'wp-remote-og-plugins' );
+			$saved_notice = __( 'Dynamic fields saved.', 'social-preview-designer' );
 		}
 
 		$fields = WP_Remote_OG_Plugin::get_dynamic_fields();
-		self::page_open( 'wp-remote-og-fields', __( 'Dynamic Fields', 'wp-remote-og-plugins' ), __( 'Map reusable tokens to post data so every generated image stays on-brand.', 'wp-remote-og-plugins' ) );
+		self::page_open( 'wp-remote-og-fields', __( 'Dynamic Fields', 'social-preview-designer' ), __( 'Map reusable tokens to post data so every generated image stays on-brand.', 'social-preview-designer' ) );
 		if ( '' !== $saved_notice ) {
 			echo '<div class="wpog-notice is-success"><p>' . esc_html( $saved_notice ) . '</p></div>';
 		}
@@ -4059,7 +4059,7 @@ final class WP_Remote_OG_Admin {
 			<form method="post" id="wp-remote-og-fields-form">
 				<?php wp_nonce_field( 'wp_remote_og_dynamic_fields', 'wp_remote_og_fields_nonce' ); ?>
 				<table class="widefat striped wp-remote-og-fields-table">
-					<thead><tr><th><?php esc_html_e( 'Enabled', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Token', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Label', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Fallback', 'wp-remote-og-plugins' ); ?></th><th></th></tr></thead>
+					<thead><tr><th><?php esc_html_e( 'Enabled', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Token', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Label', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Fallback', 'social-preview-designer' ); ?></th><th></th></tr></thead>
 					<tbody id="wp-remote-og-field-rows">
 						<?php foreach ( $fields as $index => $field ) : ?>
 							<tr>
@@ -4067,17 +4067,17 @@ final class WP_Remote_OG_Admin {
 								<td><input type="text" name="fields[<?php echo esc_attr( $index ); ?>][token]" value="<?php echo esc_attr( $field['token'] ); ?>" list="wp-remote-og-field-token-list" class="regular-text"></td>
 								<td><input type="text" name="fields[<?php echo esc_attr( $index ); ?>][label]" value="<?php echo esc_attr( $field['label'] ); ?>" class="regular-text"></td>
 								<td><input type="text" name="fields[<?php echo esc_attr( $index ); ?>][fallback]" value="<?php echo esc_attr( $field['fallback'] ); ?>" class="regular-text"></td>
-								<td><button type="button" class="button wp-remote-og-remove-row"><?php esc_html_e( 'Remove', 'wp-remote-og-plugins' ); ?></button></td>
+								<td><button type="button" class="button wp-remote-og-remove-row"><?php esc_html_e( 'Remove', 'social-preview-designer' ); ?></button></td>
 							</tr>
 						<?php endforeach; ?>
 					</tbody>
 				</table>
 				<datalist id="wp-remote-og-field-token-list"></datalist>
 				<p>
-					<button type="button" class="button" id="wp-remote-og-add-field-row"><?php esc_html_e( 'Add Field', 'wp-remote-og-plugins' ); ?></button>
-					<button type="button" class="button button-secondary" id="wp-remote-og-fill-available-fields"><?php esc_html_e( 'Load available fields', 'wp-remote-og-plugins' ); ?></button>
+					<button type="button" class="button" id="wp-remote-og-add-field-row"><?php esc_html_e( 'Add Field', 'social-preview-designer' ); ?></button>
+					<button type="button" class="button button-secondary" id="wp-remote-og-fill-available-fields"><?php esc_html_e( 'Load available fields', 'social-preview-designer' ); ?></button>
 				</p>
-				<?php submit_button( __( 'Save Dynamic Fields', 'wp-remote-og-plugins' ) ); ?>
+				<?php submit_button( __( 'Save Dynamic Fields', 'social-preview-designer' ) ); ?>
 			</form>
 			</div>
 		<?php
@@ -4086,20 +4086,20 @@ final class WP_Remote_OG_Admin {
 
 	public static function render_fonts_page() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'social-preview-designer' ) );
 		}
 
 		$notices = array();
 		if ( isset( $_POST['wp_remote_og_font_nonce'] ) && check_admin_referer( 'wp_remote_og_upload_font', 'wp_remote_og_font_nonce' ) ) {
 			if ( ! current_user_can( 'upload_files' ) ) {
-				$notices[] = array( 'error', __( 'You do not have permission to upload files.', 'wp-remote-og-plugins' ) );
+				$notices[] = array( 'error', __( 'You do not have permission to upload files.', 'social-preview-designer' ) );
 			} else {
 				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- upload is verified with is_uploaded_file() and wp_check_filetype_and_ext() in upload_from_request().
 				$result = WP_Remote_OG_Fonts::upload_from_request( isset( $_FILES['wp_remote_og_font'] ) ? $_FILES['wp_remote_og_font'] : array() );
 				if ( is_wp_error( $result ) ) {
 					$notices[] = array( 'error', $result->get_error_message() );
 				} else {
-					$notices[] = array( 'success', __( 'Font uploaded.', 'wp-remote-og-plugins' ) );
+					$notices[] = array( 'success', __( 'Font uploaded.', 'social-preview-designer' ) );
 				}
 			}
 		}
@@ -4111,27 +4111,27 @@ final class WP_Remote_OG_Admin {
 			if ( is_wp_error( $result ) ) {
 				$notices[] = array( 'error', $result->get_error_message() );
 			} else {
-				$notices[] = array( 'success', __( 'Google Font added.', 'wp-remote-og-plugins' ) );
+				$notices[] = array( 'success', __( 'Google Font added.', 'social-preview-designer' ) );
 			}
 		}
 
 		$fonts = WP_Remote_OG_Plugin::get_fonts();
-		self::page_open( 'wp-remote-og-fonts', __( 'Fonts', 'wp-remote-og-plugins' ), __( 'Upload custom fonts or add Google Fonts to use in your template text layers.', 'wp-remote-og-plugins' ) );
+		self::page_open( 'wp-remote-og-fonts', __( 'Fonts', 'social-preview-designer' ), __( 'Upload custom fonts or add Google Fonts to use in your template text layers.', 'social-preview-designer' ) );
 		foreach ( $notices as $notice ) {
 			echo '<div class="wpog-notice is-' . esc_attr( $notice[0] ) . '"><p>' . esc_html( $notice[1] ) . '</p></div>';
 		}
 		?>
 			<div class="wpog-card">
-			<h2 class="wpog-card-title"><?php esc_html_e( 'Add a font', 'wp-remote-og-plugins' ); ?></h2>
+			<h2 class="wpog-card-title"><?php esc_html_e( 'Add a font', 'social-preview-designer' ); ?></h2>
 			<form method="post" enctype="multipart/form-data" class="wp-remote-og-font-upload">
 				<?php wp_nonce_field( 'wp_remote_og_upload_font', 'wp_remote_og_font_nonce' ); ?>
 				<input type="file" name="wp_remote_og_font" accept=".ttf,.otf,.woff,.woff2" required>
-				<?php submit_button( __( 'Upload Font', 'wp-remote-og-plugins' ), 'primary', 'submit', false ); ?>
+				<?php submit_button( __( 'Upload Font', 'social-preview-designer' ), 'primary', 'submit', false ); ?>
 			</form>
 			<form method="post" class="wp-remote-og-font-upload wp-remote-og-google-font-form">
 				<?php wp_nonce_field( 'wp_remote_og_add_google_font', 'wp_remote_og_google_font_nonce' ); ?>
 				<div class="wp-remote-og-google-font-field">
-					<label for="wp-remote-og-google-font-family"><?php esc_html_e( 'Google font family', 'wp-remote-og-plugins' ); ?></label>
+					<label for="wp-remote-og-google-font-family"><?php esc_html_e( 'Google font family', 'social-preview-designer' ); ?></label>
 					<div class="wp-remote-og-font-picker">
 						<input
 							id="wp-remote-og-google-font-family"
@@ -4142,12 +4142,12 @@ final class WP_Remote_OG_Admin {
 							aria-autocomplete="list"
 							aria-expanded="false"
 							aria-controls="wp-remote-og-google-font-suggestions"
-							placeholder="<?php echo esc_attr__( 'Roboto, Inter:wght@400;700', 'wp-remote-og-plugins' ); ?>"
+							placeholder="<?php echo esc_attr__( 'Roboto, Inter:wght@400;700', 'social-preview-designer' ); ?>"
 						>
 						<button
 							type="button"
 							class="wp-remote-og-font-picker-toggle"
-							aria-label="<?php echo esc_attr__( 'Show Google font suggestions', 'wp-remote-og-plugins' ); ?>"
+							aria-label="<?php echo esc_attr__( 'Show Google font suggestions', 'social-preview-designer' ); ?>"
 							aria-expanded="false"
 							aria-controls="wp-remote-og-google-font-suggestions"
 						></button>
@@ -4159,25 +4159,25 @@ final class WP_Remote_OG_Admin {
 					</datalist>
 				</div>
 				<p class="description">
-					<span id="wp-remote-og-google-font-status"><?php esc_html_e( 'Loading Google font directory…', 'wp-remote-og-plugins' ); ?></span>
-					<?php esc_html_e( 'Type to search, and still add variants manually (for example Inter:wght@400;700).', 'wp-remote-og-plugins' ); ?>
+					<span id="wp-remote-og-google-font-status"><?php esc_html_e( 'Loading Google font directory…', 'social-preview-designer' ); ?></span>
+					<?php esc_html_e( 'Type to search, and still add variants manually (for example Inter:wght@400;700).', 'social-preview-designer' ); ?>
 				</p>
-				<?php submit_button( __( 'Add Google Font', 'wp-remote-og-plugins' ), 'secondary', 'submit_google_font', false ); ?>
+				<?php submit_button( __( 'Add Google Font', 'social-preview-designer' ), 'secondary', 'submit_google_font', false ); ?>
 			</form>
 			</div>
 			<div class="wpog-card">
-			<h2 class="wpog-card-title"><?php esc_html_e( 'Available fonts', 'wp-remote-og-plugins' ); ?></h2>
+			<h2 class="wpog-card-title"><?php esc_html_e( 'Available fonts', 'social-preview-designer' ); ?></h2>
 			<table class="widefat striped">
-				<thead><tr><th><?php esc_html_e( 'Font', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'File', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Server Rendering', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Uploaded', 'wp-remote-og-plugins' ); ?></th></tr></thead>
+				<thead><tr><th><?php esc_html_e( 'Font', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'File', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Server Rendering', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Uploaded', 'social-preview-designer' ); ?></th></tr></thead>
 				<tbody>
 					<?php if ( empty( $fonts ) ) : ?>
-						<tr><td colspan="4"><?php esc_html_e( 'No custom fonts added yet.', 'wp-remote-og-plugins' ); ?></td></tr>
+						<tr><td colspan="4"><?php esc_html_e( 'No custom fonts added yet.', 'social-preview-designer' ); ?></td></tr>
 					<?php endif; ?>
 				<?php foreach ( $fonts as $font ) : ?>
 					<tr>
 						<?php
-						$font_file    = ! empty( $font['source'] ) && 'google' === $font['source'] ? esc_html__( 'Google Fonts', 'wp-remote-og-plugins' ) : ( isset( $font['filename'] ) ? $font['filename'] : '' );
-						$font_support = ! empty( $font['renderable'] ) ? esc_html__( 'Supported', 'wp-remote-og-plugins' ) : esc_html__( 'Preview only; renderer may not support this format', 'wp-remote-og-plugins' );
+						$font_file    = ! empty( $font['source'] ) && 'google' === $font['source'] ? esc_html__( 'Google Fonts', 'social-preview-designer' ) : ( isset( $font['filename'] ) ? $font['filename'] : '' );
+						$font_support = ! empty( $font['renderable'] ) ? esc_html__( 'Supported', 'social-preview-designer' ) : esc_html__( 'Preview only; renderer may not support this format', 'social-preview-designer' );
 						?>
 						<td><?php echo esc_html( $font['label'] ); ?></td>
 						<td><?php echo esc_html( $font_file ); ?></td>
@@ -4194,32 +4194,32 @@ final class WP_Remote_OG_Admin {
 
 	public static function render_tools_page() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'social-preview-designer' ) );
 		}
 
 		$log = get_option( WP_Remote_OG_Plugin::OPTION_GENERATION_LOG, array() );
 		$log = is_array( $log ) ? array_reverse( $log ) : array();
-		self::page_open( 'wp-remote-og-tools', __( 'Generation Tools', 'wp-remote-og-plugins' ), __( 'Bulk generate, regenerate, and clean up the social preview images across your posts.', 'wp-remote-og-plugins' ) );
+		self::page_open( 'wp-remote-og-tools', __( 'Generation Tools', 'social-preview-designer' ), __( 'Bulk generate, regenerate, and clean up the social preview images across your posts.', 'social-preview-designer' ) );
 		?>
 			<?php if ( get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ) ) : ?>
-				<div class="wpog-notice is-info"><p><strong><?php esc_html_e( 'Template changed. Regenerate all existing OG images now?', 'wp-remote-og-plugins' ); ?></strong></p></div>
+				<div class="wpog-notice is-info"><p><strong><?php esc_html_e( 'Template changed. Regenerate all existing OG images now?', 'social-preview-designer' ); ?></strong></p></div>
 			<?php endif; ?>
 			<div class="wpog-card">
-			<h2 class="wpog-card-title"><?php esc_html_e( 'Actions', 'wp-remote-og-plugins' ); ?></h2>
+			<h2 class="wpog-card-title"><?php esc_html_e( 'Actions', 'social-preview-designer' ); ?></h2>
 			<div class="wp-remote-og-tool-actions">
-				<button type="button" class="button button-primary wp-remote-og-bulk" data-mode="all"><?php esc_html_e( 'Regenerate OG Images for All Posts', 'wp-remote-og-plugins' ); ?></button>
-				<button type="button" class="button wp-remote-og-bulk" data-mode="missing"><?php esc_html_e( 'Regenerate Missing OG Images Only', 'wp-remote-og-plugins' ); ?></button>
-				<button type="button" class="button" id="wp-remote-og-cleanup-orphans"><?php esc_html_e( 'Delete Orphaned OG Images', 'wp-remote-og-plugins' ); ?></button>
+				<button type="button" class="button button-primary wp-remote-og-bulk" data-mode="all"><?php esc_html_e( 'Regenerate OG Images for All Posts', 'social-preview-designer' ); ?></button>
+				<button type="button" class="button wp-remote-og-bulk" data-mode="missing"><?php esc_html_e( 'Regenerate Missing OG Images Only', 'social-preview-designer' ); ?></button>
+				<button type="button" class="button" id="wp-remote-og-cleanup-orphans"><?php esc_html_e( 'Delete Orphaned OG Images', 'social-preview-designer' ); ?></button>
 			</div>
 			<div class="wp-remote-og-progress" id="wp-remote-og-progress" aria-live="polite"></div>
 			</div>
 			<div class="wpog-card">
-			<h2 class="wpog-card-title"><?php esc_html_e( 'Generation Log', 'wp-remote-og-plugins' ); ?></h2>
+			<h2 class="wpog-card-title"><?php esc_html_e( 'Generation Log', 'social-preview-designer' ); ?></h2>
 			<table class="widefat striped">
-				<thead><tr><th><?php esc_html_e( 'Time', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Post', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Status', 'wp-remote-og-plugins' ); ?></th><th><?php esc_html_e( 'Message', 'wp-remote-og-plugins' ); ?></th></tr></thead>
+				<thead><tr><th><?php esc_html_e( 'Time', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Post', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Status', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Message', 'social-preview-designer' ); ?></th></tr></thead>
 				<tbody>
 					<?php if ( empty( $log ) ) : ?>
-						<tr><td colspan="4"><?php esc_html_e( 'No generation events yet.', 'wp-remote-og-plugins' ); ?></td></tr>
+						<tr><td colspan="4"><?php esc_html_e( 'No generation events yet.', 'social-preview-designer' ); ?></td></tr>
 					<?php endif; ?>
 					<?php foreach ( $log as $entry ) : ?>
 						<tr>
@@ -4238,25 +4238,25 @@ final class WP_Remote_OG_Admin {
 
 	public static function render_diagnostics_page() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-remote-og-plugins' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'social-preview-designer' ) );
 		}
 
 		$diagnostics = WP_Remote_OG_Diagnostics::get();
-		self::page_open( 'wp-remote-og-diagnostics', __( 'Diagnostics', 'wp-remote-og-plugins' ), __( 'Check the rendering environment and image generation status at a glance.', 'wp-remote-og-plugins' ) );
+		self::page_open( 'wp-remote-og-diagnostics', __( 'Diagnostics', 'social-preview-designer' ), __( 'Check the rendering environment and image generation status at a glance.', 'social-preview-designer' ) );
 		?>
 			<div class="wpog-card">
 			<table class="widefat striped wp-remote-og-diagnostics">
 				<tbody>
-					<tr><th><?php esc_html_e( 'Imagick availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['imagick'], __( 'Available', 'wp-remote-og-plugins' ), __( 'Unavailable', 'wp-remote-og-plugins' ), 'warn' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
-					<tr><th><?php esc_html_e( 'GD availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['gd'], __( 'Available', 'wp-remote-og-plugins' ), __( 'Unavailable', 'wp-remote-og-plugins' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
-					<tr><th><?php esc_html_e( 'Rank Math availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['rank_math'], __( 'Active', 'wp-remote-og-plugins' ), __( 'Inactive', 'wp-remote-og-plugins' ), 'warn' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
-					<tr><th><?php esc_html_e( 'ACF availability', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['acf'], __( 'Active', 'wp-remote-og-plugins' ), __( 'Inactive', 'wp-remote-og-plugins' ), 'warn' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
-					<tr><th><?php esc_html_e( 'Uploads directory', 'wp-remote-og-plugins' ); ?></th><td><code><?php echo esc_html( $diagnostics['upload_dir'] ); ?></code></td></tr>
-					<tr><th><?php esc_html_e( 'Uploads writable', 'wp-remote-og-plugins' ); ?></th><td><?php echo self::badge( $diagnostics['upload_writable'], __( 'Writable', 'wp-remote-og-plugins' ), __( 'Not writable', 'wp-remote-og-plugins' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
-					<tr><th><?php esc_html_e( 'Generated images', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['generated_count'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Missing images', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['missing_count'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Orphaned images', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['orphaned_count'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Last bulk result', 'wp-remote-og-plugins' ); ?></th><td><?php echo esc_html( $diagnostics['last_bulk_result'] ? $diagnostics['last_bulk_result'] : __( 'No bulk run yet.', 'wp-remote-og-plugins' ) ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Imagick availability', 'social-preview-designer' ); ?></th><td><?php echo self::badge( $diagnostics['imagick'], __( 'Available', 'social-preview-designer' ), __( 'Unavailable', 'social-preview-designer' ), 'warn' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
+					<tr><th><?php esc_html_e( 'GD availability', 'social-preview-designer' ); ?></th><td><?php echo self::badge( $diagnostics['gd'], __( 'Available', 'social-preview-designer' ), __( 'Unavailable', 'social-preview-designer' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
+					<tr><th><?php esc_html_e( 'Rank Math availability', 'social-preview-designer' ); ?></th><td><?php echo self::badge( $diagnostics['rank_math'], __( 'Active', 'social-preview-designer' ), __( 'Inactive', 'social-preview-designer' ), 'warn' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
+					<tr><th><?php esc_html_e( 'ACF availability', 'social-preview-designer' ); ?></th><td><?php echo self::badge( $diagnostics['acf'], __( 'Active', 'social-preview-designer' ), __( 'Inactive', 'social-preview-designer' ), 'warn' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
+					<tr><th><?php esc_html_e( 'Uploads directory', 'social-preview-designer' ); ?></th><td><code><?php echo esc_html( $diagnostics['upload_dir'] ); ?></code></td></tr>
+					<tr><th><?php esc_html_e( 'Uploads writable', 'social-preview-designer' ); ?></th><td><?php echo self::badge( $diagnostics['upload_writable'], __( 'Writable', 'social-preview-designer' ), __( 'Not writable', 'social-preview-designer' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td></tr>
+					<tr><th><?php esc_html_e( 'Generated images', 'social-preview-designer' ); ?></th><td><?php echo esc_html( $diagnostics['generated_count'] ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Missing images', 'social-preview-designer' ); ?></th><td><?php echo esc_html( $diagnostics['missing_count'] ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Orphaned images', 'social-preview-designer' ); ?></th><td><?php echo esc_html( $diagnostics['orphaned_count'] ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Last bulk result', 'social-preview-designer' ); ?></th><td><?php echo esc_html( $diagnostics['last_bulk_result'] ? $diagnostics['last_bulk_result'] : __( 'No bulk run yet.', 'social-preview-designer' ) ); ?></td></tr>
 				</tbody>
 			</table>
 			</div>
@@ -4267,7 +4267,7 @@ final class WP_Remote_OG_Admin {
 	public static function add_meta_box() {
 		add_meta_box(
 			'wp_remote_og_meta',
-			__( 'Remote OG Image', 'wp-remote-og-plugins' ),
+			__( 'Remote OG Image', 'social-preview-designer' ),
 			array( __CLASS__, 'render_meta_box' ),
 			'post',
 			'side',
@@ -4277,7 +4277,7 @@ final class WP_Remote_OG_Admin {
 
 	public static function render_meta_box( $post ) {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			echo '<p>' . esc_html__( 'You do not have permission to manage OG images.', 'wp-remote-og-plugins' ) . '</p>';
+			echo '<p>' . esc_html__( 'You do not have permission to manage OG images.', 'social-preview-designer' ) . '</p>';
 			return;
 		}
 
@@ -4288,18 +4288,18 @@ final class WP_Remote_OG_Admin {
 		<div class="wp-remote-og-post-box">
 			<?php if ( ! empty( $meta['url'] ) ) : ?>
 				<img src="<?php echo esc_url( $meta['url'] ); ?>" alt="" class="wp-remote-og-post-preview">
-				<p><a href="<?php echo esc_url( $meta['url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View generated image', 'wp-remote-og-plugins' ); ?></a></p>
+				<p><a href="<?php echo esc_url( $meta['url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View generated image', 'social-preview-designer' ); ?></a></p>
 			<?php else : ?>
-				<p><?php esc_html_e( 'No generated OG image yet.', 'wp-remote-og-plugins' ); ?></p>
+				<p><?php esc_html_e( 'No generated OG image yet.', 'social-preview-designer' ); ?></p>
 			<?php endif; ?>
 			<?php if ( ! empty( $warnings ) ) : ?>
 				<div class="notice notice-warning inline">
 					<p><?php echo esc_html( implode( ' ', $warnings ) ); ?></p>
 				</div>
 			<?php endif; ?>
-			<p><strong><?php esc_html_e( 'Generated at:', 'wp-remote-og-plugins' ); ?></strong> <?php echo esc_html( $meta['generated_at'] ? $meta['generated_at'] : __( 'Never', 'wp-remote-og-plugins' ) ); ?></p>
-			<p><strong><?php esc_html_e( 'Template version:', 'wp-remote-og-plugins' ); ?></strong> <?php echo esc_html( $meta['template_version'] ); ?></p>
-			<button type="button" class="button button-primary wp-remote-og-generate-post" data-post-id="<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Generate / Regenerate OG Image', 'wp-remote-og-plugins' ); ?></button>
+			<p><strong><?php esc_html_e( 'Generated at:', 'social-preview-designer' ); ?></strong> <?php echo esc_html( $meta['generated_at'] ? $meta['generated_at'] : __( 'Never', 'social-preview-designer' ) ); ?></p>
+			<p><strong><?php esc_html_e( 'Template version:', 'social-preview-designer' ); ?></strong> <?php echo esc_html( $meta['template_version'] ); ?></p>
+			<button type="button" class="button button-primary wp-remote-og-generate-post" data-post-id="<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Generate / Regenerate OG Image', 'social-preview-designer' ); ?></button>
 			<div class="wp-remote-og-post-status" aria-live="polite"></div>
 		</div>
 		<?php
@@ -4308,7 +4308,7 @@ final class WP_Remote_OG_Admin {
 	private static function verify_ajax() {
 		check_ajax_referer( 'wp_remote_og_admin', 'nonce' );
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to manage WP Remote OG.', 'wp-remote-og-plugins' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to manage WP Remote OG.', 'social-preview-designer' ) ), 403 );
 		}
 	}
 
@@ -4493,7 +4493,7 @@ final class WP_Remote_OG_Admin {
 	public static function apply_preset( $key ) {
 		$preset = WP_Remote_OG_Presets::get( sanitize_key( (string) $key ) );
 		if ( ! $preset ) {
-			return new WP_Error( 'wp_remote_og_unknown_preset', __( 'Unknown template preset.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_unknown_preset', __( 'Unknown template preset.', 'social-preview-designer' ) );
 		}
 
 		// Preserve-first: only back up when no backup already exists, so the
@@ -4532,7 +4532,7 @@ final class WP_Remote_OG_Admin {
 	public static function restore_template_backup() {
 		$backup = get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP );
 		if ( ! is_array( $backup ) || empty( $backup['template'] ) ) {
-			return new WP_Error( 'wp_remote_og_no_backup', __( 'No previous template is available to restore.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_no_backup', __( 'No previous template is available to restore.', 'social-preview-designer' ) );
 		}
 
 		$template = WP_Remote_OG_Plugin::save_template( $backup['template'] );
@@ -4635,7 +4635,7 @@ final class WP_Remote_OG_Admin {
 	private static function guard_custom_template_record( $record ) {
 		$size = strlen( (string) wp_json_encode( $record ) );
 		if ( $size > WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_BYTES ) {
-			return new WP_Error( 'wp_remote_og_template_too_large', __( 'This template is too large to save.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_template_too_large', __( 'This template is too large to save.', 'social-preview-designer' ) );
 		}
 		return true;
 	}
@@ -4651,7 +4651,7 @@ final class WP_Remote_OG_Admin {
 	private static function guard_custom_store_size( $templates ) {
 		$size = strlen( (string) wp_json_encode( array_values( $templates ) ) );
 		if ( $size > WP_Remote_OG_Plugin::MAX_CUSTOM_STORE_BYTES ) {
-			return new WP_Error( 'wp_remote_og_store_full', __( 'Your saved templates have reached the total storage limit. Delete a template to free up space.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_store_full', __( 'Your saved templates have reached the total storage limit. Delete a template to free up space.', 'social-preview-designer' ) );
 		}
 		return true;
 	}
@@ -4664,10 +4664,10 @@ final class WP_Remote_OG_Admin {
 	 */
 	private static function validate_custom_template_name( $name ) {
 		if ( '' === $name ) {
-			return new WP_Error( 'wp_remote_og_invalid_name', __( 'Please enter a template name.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_invalid_name', __( 'Please enter a template name.', 'social-preview-designer' ) );
 		}
 		if ( WP_Remote_OG_Plugin::text_length( $name ) > WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_NAME ) {
-			return new WP_Error( 'wp_remote_og_invalid_name', __( 'Template names must be 100 characters or fewer.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_invalid_name', __( 'Template names must be 100 characters or fewer.', 'social-preview-designer' ) );
 		}
 		return true;
 	}
@@ -4699,7 +4699,7 @@ final class WP_Remote_OG_Admin {
 
 		$templates = WP_Remote_OG_Plugin::get_custom_templates();
 		if ( count( $templates ) >= WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES ) {
-			return new WP_Error( 'wp_remote_og_limit_reached', __( 'You have reached the maximum number of saved templates.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_limit_reached', __( 'You have reached the maximum number of saved templates.', 'social-preview-designer' ) );
 		}
 
 		$now    = current_time( 'mysql' );
@@ -4762,7 +4762,7 @@ final class WP_Remote_OG_Admin {
 		$id        = sanitize_text_field( (string) $id );
 		$templates = WP_Remote_OG_Plugin::get_custom_templates();
 		if ( ! isset( $templates[ $id ] ) ) {
-			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'social-preview-designer' ) );
 		}
 
 		$record               = $templates[ $id ];
@@ -4819,7 +4819,7 @@ final class WP_Remote_OG_Admin {
 
 		$templates = WP_Remote_OG_Plugin::get_custom_templates();
 		if ( ! isset( $templates[ $id ] ) ) {
-			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'social-preview-designer' ) );
 		}
 
 		$templates[ $id ]['name']       = $name;
@@ -4847,16 +4847,16 @@ final class WP_Remote_OG_Admin {
 		$id        = sanitize_text_field( (string) $id );
 		$templates = WP_Remote_OG_Plugin::get_custom_templates();
 		if ( ! isset( $templates[ $id ] ) ) {
-			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'social-preview-designer' ) );
 		}
 
 		if ( count( $templates ) >= WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATES ) {
-			return new WP_Error( 'wp_remote_og_limit_reached', __( 'You have reached the maximum number of saved templates.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_limit_reached', __( 'You have reached the maximum number of saved templates.', 'social-preview-designer' ) );
 		}
 
 		$source = $templates[ $id ];
 		$name   = WP_Remote_OG_Plugin::sanitize_custom_template_name( $source['name'] . ' copy' );
-		$name   = '' === $name ? __( 'Copy', 'wp-remote-og-plugins' ) : WP_Remote_OG_Plugin::text_truncate( $name, WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_NAME );
+		$name   = '' === $name ? __( 'Copy', 'social-preview-designer' ) : WP_Remote_OG_Plugin::text_truncate( $name, WP_Remote_OG_Plugin::MAX_CUSTOM_TEMPLATE_NAME );
 		$now    = current_time( 'mysql' );
 		$record = array(
 			'id'             => self::generate_custom_id(),
@@ -4897,7 +4897,7 @@ final class WP_Remote_OG_Admin {
 		$id        = sanitize_text_field( (string) $id );
 		$templates = WP_Remote_OG_Plugin::get_custom_templates();
 		if ( ! isset( $templates[ $id ] ) ) {
-			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'social-preview-designer' ) );
 		}
 
 		unset( $templates[ $id ] );
@@ -4929,7 +4929,7 @@ final class WP_Remote_OG_Admin {
 		$id        = sanitize_text_field( (string) $id );
 		$templates = WP_Remote_OG_Plugin::get_custom_templates();
 		if ( ! isset( $templates[ $id ] ) ) {
-			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'social-preview-designer' ) );
 		}
 
 		if ( false === get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_BACKUP, false ) ) {
@@ -5015,7 +5015,7 @@ final class WP_Remote_OG_Admin {
 		$id        = sanitize_text_field( (string) $id );
 		$templates = WP_Remote_OG_Plugin::get_custom_templates();
 		if ( ! isset( $templates[ $id ] ) ) {
-			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'wp-remote-og-plugins' ) );
+			return new WP_Error( 'wp_remote_og_not_found', __( 'That template no longer exists.', 'social-preview-designer' ) );
 		}
 
 		return array(
