@@ -26,4 +26,4 @@ wp plugin install plugin-check --activate
 wp plugin check wp-remote-og-plugins
 ```
 
-Note: the local development folder is named `wp-remote-og-plugins`; for WordPress.org submission the distributed folder/slug should be renamed (e.g. `social-preview-designer`) because new wp.org slugs may not contain the terms `wp` or `plugin`. Internal code identifiers (`wp_remote_og_*` prefixes, text domain) intentionally keep the original naming.
+The user-facing plugin name and gettext text domain are `Social Preview Designer` / `social-preview-designer`. For WordPress.org submission the distributed folder/slug should also be `social-preview-designer`, because new wp.org slugs may not contain the terms `wp` or `plugin`. Internal code identifiers (`wp_remote_og_*` prefixes, option keys, and class names) keep the original naming so existing installs are not broken.

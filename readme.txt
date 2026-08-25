@@ -4,7 +4,7 @@ Tags: open graph, social image, dynamic image, og image, rank math
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -77,6 +77,9 @@ No. The only external requests are the optional, admin-initiated Google Fonts re
 3. Generated Open Graph image example.
 
 == Changelog ==
+
+= 1.0.3 =
+* Changed: the plugin's gettext text domain is now `social-preview-designer`, matching the plugin name and WordPress.org slug. Remaining user-facing "WP Remote OG" labels now say Social Preview Designer. Internal option keys, meta keys, and class names are unchanged.
 
 = 1.0.2 =
 * Fixed: the generated image is now supplied as the thumbnail in the WordPress oEmbed response. LinkedIn reads the oEmbed endpoint in preference to the Open Graph tags, and WordPress supplies a thumbnail only for posts that have a featured image. Without this, LinkedIn reported "No image found" and refused the link attachment, whatever the og:image tag said.
