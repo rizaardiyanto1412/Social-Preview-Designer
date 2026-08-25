@@ -4,7 +4,7 @@ Tags: open graph, social image, dynamic image, og image, rank math
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -77,6 +77,13 @@ No. The only external requests are the optional, admin-initiated Google Fonts re
 3. Generated Open Graph image example.
 
 == Changelog ==
+
+= 1.0.2 =
+* Fixed: the generated image is now supplied as the thumbnail in the WordPress oEmbed response. LinkedIn reads the oEmbed endpoint in preference to the Open Graph tags, and WordPress supplies a thumbnail only for posts that have a featured image. Without this, LinkedIn reported "No image found" and refused the link attachment, whatever the og:image tag said.
+
+= 1.0.1 =
+* Changed: generated images no longer carry an alpha channel, and are written as opaque PNG files. This improves compatibility with strict image parsers. The visible image is unchanged.
+* Added: og:image:width, og:image:height, and og:image:type meta tags, for Rank Math sites and for the built-in fallback output.
 
 = 1.0.0 =
 * Initial public release.

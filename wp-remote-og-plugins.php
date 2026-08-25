@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Social Preview Designer
  * Description: Design one Open Graph image template and automatically generate a branded social preview image for every post. Integrates with Rank Math.
- * Version: 1.0.0
+ * Version: 1.0.2
  * Author: WP Remote Work
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WP_REMOTE_OG_VERSION', '1.0.0' );
+define( 'WP_REMOTE_OG_VERSION', '1.0.2' );
 define( 'WP_REMOTE_OG_FILE', __FILE__ );
 define( 'WP_REMOTE_OG_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WP_REMOTE_OG_URL', plugin_dir_url( __FILE__ ) );
@@ -1668,13 +1668,43 @@ final class WP_Remote_OG_Renderer {
 				self::draw_text_imagick( $image, $layer, $text );
 			}
 
-			$image->writeImage( $destination );
+			// LinkedIn refuses PNG files that carry an alpha channel and reports
+			// "No image found". Flatten onto an opaque canvas before we write.
+			$flat = self::flatten_imagick( $image );
+			$flat->writeImage( $destination );
+			$flat->clear();
 			$image->clear();
 		} catch ( Exception $exception ) {
 			return new WP_Error( 'wp_remote_og_imagick_error', sanitize_text_field( $exception->getMessage() ) );
 		}
 
 		return file_exists( $destination ) ? true : new WP_Error( 'wp_remote_og_render_failed', __( 'Image file was not created.', 'wp-remote-og-plugins' ) );
+	}
+
+	/**
+	 * Return an opaque copy of the canvas. LinkedIn refuses PNG files that carry
+	 * an alpha channel, so the OG image must be written without one.
+	 */
+	private static function flatten_imagick( $image ) {
+		$flat = new Imagick();
+		$flat->newImage( WP_Remote_OG_Plugin::CANVAS_WIDTH, WP_Remote_OG_Plugin::CANVAS_HEIGHT, new ImagickPixel( '#ffffff' ) );
+		$flat->setImageFormat( 'png' );
+		$flat->compositeImage( $image, Imagick::COMPOSITE_OVER, 0, 0 );
+
+		if ( defined( 'Imagick::ALPHACHANNEL_REMOVE' ) ) {
+			$flat->setImageAlphaChannel( Imagick::ALPHACHANNEL_REMOVE );
+		} elseif ( defined( 'Imagick::ALPHACHANNEL_DEACTIVATE' ) ) {
+			$flat->setImageAlphaChannel( Imagick::ALPHACHANNEL_DEACTIVATE );
+		}
+
+		if ( method_exists( $flat, 'setImageMatte' ) ) {
+			$flat->setImageMatte( false );
+		}
+
+		$flat->setImageType( Imagick::IMGTYPE_TRUECOLOR );
+		$flat->stripImage();
+
+		return $flat;
 	}
 
 	private static function draw_text_imagick( $image, $layer, $text ) {
@@ -1824,6 +1854,10 @@ final class WP_Remote_OG_Renderer {
 			$text     = WP_Remote_OG_Dynamic_Fields::resolve_text( $post_id, $layer['content'], $warnings );
 			self::draw_text_gd( $image, $layer, $text );
 		}
+
+		// Keep the file free of an alpha channel, or LinkedIn reports "No image found".
+		imagealphablending( $image, true );
+		imagesavealpha( $image, false );
 
 		$result = imagepng( $image, $destination );
 		imagedestroy( $image );
@@ -2420,6 +2454,8 @@ final class WP_Remote_OG_SEO {
 		add_filter( 'rank_math/opengraph/twitter/image', array( __CLASS__, 'filter_rank_math_image' ), 20 );
 		add_filter( 'rank_math/frontend/twitter/image', array( __CLASS__, 'filter_rank_math_image' ), 20 );
 		add_filter( 'rank_math/opengraph/image', array( __CLASS__, 'filter_rank_math_image' ), 20 );
+		add_action( 'rank_math/opengraph/facebook', array( __CLASS__, 'print_rank_math_image_dimensions' ), 45 );
+		add_filter( 'oembed_response_data', array( __CLASS__, 'filter_oembed_thumbnail' ), 20, 2 );
 		add_action( 'wp_head', array( __CLASS__, 'fallback_meta_tags' ), 20 );
 	}
 
@@ -2463,6 +2499,58 @@ final class WP_Remote_OG_SEO {
 		return $url;
 	}
 
+	/**
+	 * Rank Math prints og:image for our file but no dimensions, because the file
+	 * is not a Media Library attachment. LinkedIn needs them to accept the image.
+	 */
+	public static function print_rank_math_image_dimensions() {
+		$post_id = get_queried_object_id();
+		if ( ! $post_id || 'post' !== get_post_type( $post_id ) ) {
+			return;
+		}
+
+		if ( ! self::image_url_for_post( $post_id ) ) {
+			return;
+		}
+
+		printf( "<meta property=\"og:image:type\" content=\"image/png\" />\n" );
+		printf( "<meta property=\"og:image:width\" content=\"%d\" />\n", WP_Remote_OG_Plugin::CANVAS_WIDTH );
+		printf( "<meta property=\"og:image:height\" content=\"%d\" />\n", WP_Remote_OG_Plugin::CANVAS_HEIGHT );
+	}
+
+	/**
+	 * Put the generated image into the WordPress oEmbed response.
+	 *
+	 * LinkedIn reads the oEmbed endpoint in preference to the Open Graph tags
+	 * when a page advertises one. WordPress adds thumbnail_url only for posts
+	 * that have a featured image, so without this filter LinkedIn sees no image
+	 * and shows "No image found", whatever the og:image tag says.
+	 *
+	 * @param array   $data The oEmbed response data.
+	 * @param WP_Post $post The post the response describes.
+	 * @return array
+	 */
+	public static function filter_oembed_thumbnail( $data, $post ) {
+		if ( ! is_array( $data ) || ! $post instanceof WP_Post || 'post' !== $post->post_type ) {
+			return $data;
+		}
+
+		if ( ! empty( $data['thumbnail_url'] ) ) {
+			return $data;
+		}
+
+		$url = self::image_url_for_post( $post->ID );
+		if ( ! $url ) {
+			return $data;
+		}
+
+		$data['thumbnail_url']    = $url;
+		$data['thumbnail_width']  = WP_Remote_OG_Plugin::CANVAS_WIDTH;
+		$data['thumbnail_height'] = WP_Remote_OG_Plugin::CANVAS_HEIGHT;
+
+		return $data;
+	}
+
 	public static function fallback_meta_tags() {
 		if ( is_admin() || is_feed() || wp_is_json_request() || self::is_rank_math_active() || ! is_singular( 'post' ) ) {
 			return;
@@ -2475,6 +2563,10 @@ final class WP_Remote_OG_SEO {
 		}
 
 		printf( "\n<meta property=\"og:image\" content=\"%s\" />\n", esc_url( $url ) );
+		printf( "<meta property=\"og:image:secure_url\" content=\"%s\" />\n", esc_url( $url ) );
+		printf( "<meta property=\"og:image:type\" content=\"image/png\" />\n" );
+		printf( "<meta property=\"og:image:width\" content=\"%d\" />\n", WP_Remote_OG_Plugin::CANVAS_WIDTH );
+		printf( "<meta property=\"og:image:height\" content=\"%d\" />\n", WP_Remote_OG_Plugin::CANVAS_HEIGHT );
 		printf( "<meta name=\"twitter:image\" content=\"%s\" />\n", esc_url( $url ) );
 	}
 }
