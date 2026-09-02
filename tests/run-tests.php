@@ -1,7 +1,7 @@
 <?php
 // phpcs:ignoreFile
 /**
- * WP-CLI integration tests for WP Remote OG Images.
+ * WP-CLI integration tests for Social Preview Designer.
  *
  * Run from the WordPress root:
  * wp eval-file wp-content/plugins/wp-remote-og-plugins/tests/run-tests.php
@@ -63,7 +63,7 @@ function wp_remote_og_make_post( $title, $status = 'publish' ) {
 	$post_id = wp_insert_post(
 		array(
 			'post_title'   => $title,
-			'post_content' => 'WP Remote OG test content.',
+			'post_content' => 'Social Preview Designer test content.',
 			'post_status'  => $status,
 			'post_type'    => 'post',
 		),
@@ -81,7 +81,7 @@ if ( $admin_id ) {
 
 WP_Remote_OG_Plugin::activate();
 
-echo "WP Remote OG integration test run\n";
+echo "Social Preview Designer integration test run\n";
 echo "=================================\n";
 
 wp_remote_og_assert( class_exists( 'WP_Remote_OG_Plugin' ), 'Plugin bootstrap class is loaded.' );
@@ -116,6 +116,10 @@ wp_remote_og_assert( false !== strpos( $template_page_html, 'wp-remote-og-layer-
 $admin_css = file_get_contents( dirname( __DIR__ ) . '/assets/admin.css' );
 wp_remote_og_assert( (bool) preg_match( '/\.wp-remote-og-layer-text\s*\{[^}]*width:\s*100%;/s', $admin_css ), 'Editor preview text span fills the layer width for alignment.' );
 $plugin_source = file_get_contents( dirname( __DIR__ ) . '/wp-remote-og-plugins.php' );
+wp_remote_og_assert( (bool) preg_match( '/^\s*\*\s*Plugin Name:\s*Social Preview Designer\s*$/m', $plugin_source ), 'Plugin header name is Social Preview Designer.' );
+wp_remote_og_assert( (bool) preg_match( '/^\s*\*\s*Text Domain:\s*social-preview-designer\s*$/m', $plugin_source ), 'Plugin header text domain matches the social-preview-designer slug.' );
+wp_remote_og_assert( false === strpos( $plugin_source, 'wp-remote-og-plugins' ), 'Legacy wp-remote-og-plugins text domain is gone from the plugin file.' );
+wp_remote_og_assert( false === strpos( $plugin_source, 'WP Remote OG' ), 'User-facing WP Remote OG brand strings are gone from the plugin file.' );
 wp_remote_og_assert( (bool) preg_match( '/\$font_size\s*=\s*\(float\)\s*\$lines\[[\'"]font_size[\'"]\];\s*\$draw->setFontSize\(\s*\$font_size\s*\);/s', $plugin_source ), 'Imagick text drawing uses the fitted font size for alignment.' );
 
 $subscriber_id = wp_insert_user(

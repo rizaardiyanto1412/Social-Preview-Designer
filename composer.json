@@ -1,8 +1,8 @@
 {
-	"name": "wp-remote-work/wp-remote-og-plugins",
+	"name": "wp-remote-work/social-preview-designer",
 	"description": "Design one Open Graph image template and automatically generate a branded social preview image for every post.",
 	"type": "wordpress-plugin",
-	"version": "1.0.0",
+	"version": "1.0.3",
 	"license": "GPL-2.0-or-later",
 	"require": {
 		"php": ">=7.4"
