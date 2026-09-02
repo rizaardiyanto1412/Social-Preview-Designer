@@ -41,6 +41,7 @@ final class WP_Remote_OG_Plugin {
 	const META_TEMPLATE_VERSION     = '_wp_remote_og_template_version';
 	const CANVAS_WIDTH              = 1200;
 	const CANVAS_HEIGHT             = 630;
+	const DEFAULT_IMAGE_SIZE        = '1200x630';
 	private static $publishpress_avatar_token_cache = array();
 
 	public static function init() {
@@ -78,12 +79,7 @@ final class WP_Remote_OG_Plugin {
 		}
 
 		if ( false === get_option( self::OPTION_SETTINGS, false ) ) {
-			add_option(
-				self::OPTION_SETTINGS,
-				array(
-					'last_bulk_result' => '',
-				)
-			);
+			add_option( self::OPTION_SETTINGS, self::default_settings() );
 		}
 
 		if ( false === get_option( self::OPTION_TEMPLATE_VERSION, false ) ) {
@@ -411,6 +407,60 @@ final class WP_Remote_OG_Plugin {
 	public static function get_fonts() {
 		$fonts = get_option( self::OPTION_FONTS, array() );
 		return is_array( $fonts ) ? array_values( $fonts ) : array();
+	}
+
+	public static function default_settings() {
+		return array(
+			'last_bulk_result'    => '',
+			'default_image_size' => self::DEFAULT_IMAGE_SIZE,
+		);
+	}
+
+	public static function image_size_options() {
+		return array(
+			'1200x630' => __( '1200 × 630 (Current default)', 'social-preview-designer' ),
+			'720x378'  => __( '720 × 378', 'social-preview-designer' ),
+		);
+	}
+
+	public static function sanitize_image_size( $size ) {
+		$size    = is_string( $size ) ? sanitize_text_field( wp_unslash( $size ) ) : '';
+		$options = self::image_size_options();
+
+		return isset( $options[ $size ] ) ? $size : self::DEFAULT_IMAGE_SIZE;
+	}
+
+	public static function get_settings() {
+		$settings = get_option( self::OPTION_SETTINGS, array() );
+		$settings = is_array( $settings ) ? $settings : array();
+		$settings = array_merge( self::default_settings(), $settings );
+		$settings['default_image_size'] = self::sanitize_image_size( $settings['default_image_size'] );
+
+		return $settings;
+	}
+
+	public static function save_settings( $settings ) {
+		$current = self::get_settings();
+		if ( ! is_array( $settings ) ) {
+			$settings = array();
+		}
+
+		if ( array_key_exists( 'default_image_size', $settings ) ) {
+			$current['default_image_size'] = self::sanitize_image_size( $settings['default_image_size'] );
+		}
+
+		update_option( self::OPTION_SETTINGS, $current, false );
+
+		return $current;
+	}
+
+	public static function get_image_dimensions() {
+		$parts = explode( 'x', self::get_settings()['default_image_size'] );
+
+		return array(
+			'width'  => absint( $parts[0] ),
+			'height' => absint( $parts[1] ),
+		);
 	}
 
 	public static function save_fonts( $fonts ) {
@@ -1595,18 +1645,19 @@ final class WP_Remote_OG_Fonts {
 
 final class WP_Remote_OG_Renderer {
 	public static function render_post( $post_id, $template, $destination, $force_engine = '' ) {
-		$template = WP_Remote_OG_Plugin::sanitize_template( $template );
-		$engine   = self::engine( $force_engine );
+		$template   = WP_Remote_OG_Plugin::sanitize_template( $template );
+		$engine     = self::engine( $force_engine );
+		$dimensions = WP_Remote_OG_Plugin::get_image_dimensions();
 
 		if ( is_wp_error( $engine ) ) {
 			return $engine;
 		}
 
 		if ( 'imagick' === $engine ) {
-			return self::render_with_imagick( $post_id, $template, $destination );
+			return self::render_with_imagick( $post_id, $template, $destination, $dimensions );
 		}
 
-		return self::render_with_gd( $post_id, $template, $destination );
+		return self::render_with_gd( $post_id, $template, $destination, $dimensions );
 	}
 
 	public static function engine( $force_engine = '' ) {
@@ -1629,7 +1680,7 @@ final class WP_Remote_OG_Renderer {
 		return new WP_Error( 'wp_remote_og_no_renderer', __( 'Neither Imagick nor GD is available.', 'social-preview-designer' ) );
 	}
 
-	private static function render_with_imagick( $post_id, $template, $destination ) {
+	private static function render_with_imagick( $post_id, $template, $destination, $dimensions ) {
 		if ( ! class_exists( 'Imagick' ) ) {
 			return new WP_Error( 'wp_remote_og_no_imagick', __( 'Imagick is not available.', 'social-preview-designer' ) );
 		}
@@ -1671,6 +1722,9 @@ final class WP_Remote_OG_Renderer {
 			// LinkedIn refuses PNG files that carry an alpha channel and reports
 			// "No image found". Flatten onto an opaque canvas before we write.
 			$flat = self::flatten_imagick( $image );
+			if ( WP_Remote_OG_Plugin::CANVAS_WIDTH !== $dimensions['width'] || WP_Remote_OG_Plugin::CANVAS_HEIGHT !== $dimensions['height'] ) {
+				$flat->resizeImage( $dimensions['width'], $dimensions['height'], Imagick::FILTER_LANCZOS, 1, false );
+			}
 			$flat->writeImage( $destination );
 			$flat->clear();
 			$image->clear();
@@ -1820,7 +1874,7 @@ final class WP_Remote_OG_Renderer {
 		$mask->destroy();
 	}
 
-	private static function render_with_gd( $post_id, $template, $destination ) {
+	private static function render_with_gd( $post_id, $template, $destination, $dimensions ) {
 		if ( ! function_exists( 'imagecreatetruecolor' ) ) {
 			return new WP_Error( 'wp_remote_og_no_gd', __( 'GD is not available.', 'social-preview-designer' ) );
 		}
@@ -1858,6 +1912,20 @@ final class WP_Remote_OG_Renderer {
 		// Keep the file free of an alpha channel, or LinkedIn reports "No image found".
 		imagealphablending( $image, true );
 		imagesavealpha( $image, false );
+
+		if ( WP_Remote_OG_Plugin::CANVAS_WIDTH !== $dimensions['width'] || WP_Remote_OG_Plugin::CANVAS_HEIGHT !== $dimensions['height'] ) {
+			$output = imagecreatetruecolor( $dimensions['width'], $dimensions['height'] );
+			if ( ! $output ) {
+				imagedestroy( $image );
+				return new WP_Error( 'wp_remote_og_gd_resize', __( 'Unable to resize generated image.', 'social-preview-designer' ) );
+			}
+
+			imagealphablending( $output, true );
+			imagesavealpha( $output, false );
+			imagecopyresampled( $output, $image, 0, 0, 0, 0, $dimensions['width'], $dimensions['height'], WP_Remote_OG_Plugin::CANVAS_WIDTH, WP_Remote_OG_Plugin::CANVAS_HEIGHT );
+			imagedestroy( $image );
+			$image = $output;
+		}
 
 		$result = imagepng( $image, $destination );
 		imagedestroy( $image );
@@ -2513,9 +2581,10 @@ final class WP_Remote_OG_SEO {
 			return;
 		}
 
+		$dimensions = WP_Remote_OG_Plugin::get_image_dimensions();
 		printf( "<meta property=\"og:image:type\" content=\"image/png\" />\n" );
-		printf( "<meta property=\"og:image:width\" content=\"%d\" />\n", WP_Remote_OG_Plugin::CANVAS_WIDTH );
-		printf( "<meta property=\"og:image:height\" content=\"%d\" />\n", WP_Remote_OG_Plugin::CANVAS_HEIGHT );
+		printf( "<meta property=\"og:image:width\" content=\"%d\" />\n", esc_attr( $dimensions['width'] ) );
+		printf( "<meta property=\"og:image:height\" content=\"%d\" />\n", esc_attr( $dimensions['height'] ) );
 	}
 
 	/**
@@ -2545,8 +2614,9 @@ final class WP_Remote_OG_SEO {
 		}
 
 		$data['thumbnail_url']    = $url;
-		$data['thumbnail_width']  = WP_Remote_OG_Plugin::CANVAS_WIDTH;
-		$data['thumbnail_height'] = WP_Remote_OG_Plugin::CANVAS_HEIGHT;
+		$dimensions               = WP_Remote_OG_Plugin::get_image_dimensions();
+		$data['thumbnail_width']  = $dimensions['width'];
+		$data['thumbnail_height'] = $dimensions['height'];
 
 		return $data;
 	}
@@ -2565,8 +2635,9 @@ final class WP_Remote_OG_SEO {
 		printf( "\n<meta property=\"og:image\" content=\"%s\" />\n", esc_url( $url ) );
 		printf( "<meta property=\"og:image:secure_url\" content=\"%s\" />\n", esc_url( $url ) );
 		printf( "<meta property=\"og:image:type\" content=\"image/png\" />\n" );
-		printf( "<meta property=\"og:image:width\" content=\"%d\" />\n", WP_Remote_OG_Plugin::CANVAS_WIDTH );
-		printf( "<meta property=\"og:image:height\" content=\"%d\" />\n", WP_Remote_OG_Plugin::CANVAS_HEIGHT );
+		$dimensions = WP_Remote_OG_Plugin::get_image_dimensions();
+		printf( "<meta property=\"og:image:width\" content=\"%d\" />\n", esc_attr( $dimensions['width'] ) );
+		printf( "<meta property=\"og:image:height\" content=\"%d\" />\n", esc_attr( $dimensions['height'] ) );
 		printf( "<meta name=\"twitter:image\" content=\"%s\" />\n", esc_url( $url ) );
 	}
 }
@@ -2579,6 +2650,7 @@ final class WP_Remote_OG_Admin {
 		add_action( 'add_meta_boxes_post', array( __CLASS__, 'add_meta_box' ) );
 		add_action( 'admin_post_wp_remote_og_export_template', array( __CLASS__, 'export_template' ) );
 		add_action( 'admin_post_wp_remote_og_import_template', array( __CLASS__, 'import_template' ) );
+		add_action( 'admin_post_wp_remote_og_save_settings', array( __CLASS__, 'save_settings' ) );
 
 		add_action( 'wp_ajax_wp_remote_og_save_template', array( __CLASS__, 'ajax_save_template' ) );
 		add_action( 'wp_ajax_wp_remote_og_preview', array( __CLASS__, 'ajax_preview' ) );
@@ -2605,6 +2677,7 @@ final class WP_Remote_OG_Admin {
 		add_submenu_page( 'wp-remote-og', __( 'Dynamic Fields', 'social-preview-designer' ), __( 'Dynamic Fields', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fields', array( __CLASS__, 'render_fields_page' ) );
 		add_submenu_page( 'wp-remote-og', __( 'Fonts', 'social-preview-designer' ), __( 'Fonts', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-fonts', array( __CLASS__, 'render_fonts_page' ) );
 		add_submenu_page( 'wp-remote-og', __( 'Generation Tools', 'social-preview-designer' ), __( 'Generation Tools', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-tools', array( __CLASS__, 'render_tools_page' ) );
+		add_submenu_page( 'wp-remote-og', __( 'Settings', 'social-preview-designer' ), __( 'Settings', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-settings', array( __CLASS__, 'render_settings_page' ) );
 		add_submenu_page( 'wp-remote-og', __( 'Diagnostics', 'social-preview-designer' ), __( 'Diagnostics', 'social-preview-designer' ), WP_Remote_OG_Plugin::capability(), 'wp-remote-og-diagnostics', array( __CLASS__, 'render_diagnostics_page' ) );
 	}
 
@@ -2740,6 +2813,21 @@ final class WP_Remote_OG_Admin {
 		exit;
 	}
 
+	public static function save_settings() {
+		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
+			wp_die( esc_html__( 'You do not have permission to save settings.', 'social-preview-designer' ) );
+		}
+
+		check_admin_referer( 'wp_remote_og_save_settings', 'wp_remote_og_settings_nonce' );
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified above; the value is sanitized before saving.
+		$size = isset( $_POST['default_image_size'] ) ? sanitize_text_field( wp_unslash( $_POST['default_image_size'] ) ) : '';
+		WP_Remote_OG_Plugin::save_settings( array( 'default_image_size' => $size ) );
+
+		$redirect = admin_url( 'admin.php?page=wp-remote-og-settings' );
+		wp_safe_redirect( add_query_arg( 'wp_remote_og_settings_saved', '1', $redirect ) );
+		exit;
+	}
+
 	public static function import_template() {
 		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
 			wp_die( esc_html__( 'You do not have permission to import templates.', 'social-preview-designer' ) );
@@ -2796,6 +2884,7 @@ final class WP_Remote_OG_Admin {
 			'wp-remote-og-fields'      => __( 'Dynamic Fields', 'social-preview-designer' ),
 			'wp-remote-og-fonts'       => __( 'Fonts', 'social-preview-designer' ),
 			'wp-remote-og-tools'       => __( 'Generation Tools', 'social-preview-designer' ),
+			'wp-remote-og-settings'     => __( 'Settings', 'social-preview-designer' ),
 			'wp-remote-og-diagnostics' => __( 'Diagnostics', 'social-preview-designer' ),
 		);
 
@@ -3104,6 +3193,45 @@ final class WP_Remote_OG_Admin {
 				<?php endforeach; ?>
 				</tbody>
 			</table>
+		</div>
+		<?php
+	}
+
+	public static function render_settings_page() {
+		if ( ! WP_Remote_OG_Plugin::can_manage() ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'social-preview-designer' ) );
+		}
+
+		$settings = WP_Remote_OG_Plugin::get_settings();
+		$options  = WP_Remote_OG_Plugin::image_size_options();
+		?>
+		<div class="wrap wp-remote-og-admin">
+			<h1><?php esc_html_e( 'Settings', 'social-preview-designer' ); ?></h1>
+			<?php self::tabs( 'wp-remote-og-settings' ); ?>
+			<?php
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag set by the nonce-verified redirect below.
+			if ( isset( $_GET['wp_remote_og_settings_saved'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['wp_remote_og_settings_saved'] ) ) ) :
+				?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'social-preview-designer' ); ?></p></div>
+			<?php endif; ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="wp_remote_og_save_settings">
+				<?php wp_nonce_field( 'wp_remote_og_save_settings', 'wp_remote_og_settings_nonce' ); ?>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="wp-remote-og-default-image-size"><?php esc_html_e( 'Default generated image size', 'social-preview-designer' ); ?></label></th>
+						<td>
+							<select id="wp-remote-og-default-image-size" name="default_image_size">
+								<?php foreach ( $options as $value => $label ) : ?>
+									<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $settings['default_image_size'], $value ); ?>><?php echo esc_html( $label ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<p class="description"><?php esc_html_e( 'New and regenerated previews use this output size. The template editor remains on the 1200×630 design canvas.', 'social-preview-designer' ); ?></p>
+						</td>
+					</tr>
+				</table>
+				<?php submit_button( __( 'Save Settings', 'social-preview-designer' ) ); ?>
+			</form>
 		</div>
 		<?php
 	}
