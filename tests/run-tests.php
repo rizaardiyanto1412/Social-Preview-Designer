@@ -104,7 +104,17 @@ wp_remote_og_assert( in_array( 'wp-remote-og', $registered_pages, true ), 'Templ
 wp_remote_og_assert( in_array( 'wp-remote-og-fields', $registered_pages, true ), 'Dynamic Fields admin page is registered.' );
 wp_remote_og_assert( in_array( 'wp-remote-og-fonts', $registered_pages, true ), 'Fonts admin page is registered.' );
 wp_remote_og_assert( in_array( 'wp-remote-og-tools', $registered_pages, true ), 'Generation Tools admin page is registered.' );
+wp_remote_og_assert( in_array( 'wp-remote-og-settings', $registered_pages, true ), 'Settings admin page is registered.' );
 wp_remote_og_assert( in_array( 'wp-remote-og-diagnostics', $registered_pages, true ), 'Diagnostics admin page is registered.' );
+
+$original_image_settings = get_option( WP_Remote_OG_Plugin::OPTION_SETTINGS, false );
+update_option( WP_Remote_OG_Plugin::OPTION_SETTINGS, array( 'last_bulk_result' => 'legacy test setting' ), false );
+$legacy_dimensions = WP_Remote_OG_Plugin::get_image_dimensions();
+wp_remote_og_assert( 1200 === $legacy_dimensions['width'] && 630 === $legacy_dimensions['height'], 'Existing settings without an image size keep the 1200x630 default.' );
+WP_Remote_OG_Plugin::save_settings( array( 'default_image_size' => '720x378' ) );
+$selected_dimensions = WP_Remote_OG_Plugin::get_image_dimensions();
+wp_remote_og_assert( 720 === $selected_dimensions['width'] && 378 === $selected_dimensions['height'], 'The 720x378 image size preset is persisted.' );
+WP_Remote_OG_Plugin::save_settings( array( 'default_image_size' => '1200x630' ) );
 
 ob_start();
 WP_Remote_OG_Admin::render_template_page();
@@ -113,6 +123,10 @@ wp_remote_og_assert( false !== strpos( $template_page_html, 'wp-remote-og-add-ho
 wp_remote_og_assert( false !== strpos( $template_page_html, 'wp-remote-og-add-vertical-line' ), 'Template editor exposes an Add Vertical Line button.' );
 wp_remote_og_assert( false !== strpos( $template_page_html, 'wp-remote-og-layer-line-orientation' ), 'Template editor exposes line orientation controls.' );
 wp_remote_og_assert( false !== strpos( $template_page_html, 'wp-remote-og-layer-image-fit' ), 'Template editor exposes image fit controls.' );
+ob_start();
+WP_Remote_OG_Admin::render_settings_page();
+$settings_page_html = ob_get_clean();
+wp_remote_og_assert( false !== strpos( $settings_page_html, 'value="1200x630"' ) && false !== strpos( $settings_page_html, 'value="720x378"' ), 'Settings page exposes the current and 720x378 image size presets.' );
 $admin_css = file_get_contents( dirname( __DIR__ ) . '/assets/admin.css' );
 wp_remote_og_assert( (bool) preg_match( '/\.wp-remote-og-layer-text\s*\{[^}]*width:\s*100%;/s', $admin_css ), 'Editor preview text span fills the layer width for alignment.' );
 $plugin_source = file_get_contents( dirname( __DIR__ ) . '/wp-remote-og-plugins.php' );
@@ -325,6 +339,17 @@ $invalid_preview = WP_Remote_OG_Dynamic_Fields::preview_data( 999999999, $templa
 wp_remote_og_assert( is_wp_error( $invalid_preview ), 'Preview rejects nonexistent post IDs.' );
 
 $render_dir  = WP_Remote_OG_Uploads::ensure_directory();
+
+WP_Remote_OG_Plugin::save_settings( array( 'default_image_size' => '720x378' ) );
+$resized_render_path = trailingslashit( $render_dir['path'] ) . 'wp-remote-og-resized-render-test.png';
+$resized_rendered   = WP_Remote_OG_Renderer::render_post( $post_id, $template, $resized_render_path, 'gd' );
+$resized_size       = file_exists( $resized_render_path ) ? getimagesize( $resized_render_path ) : false;
+wp_remote_og_assert( ! is_wp_error( $resized_rendered ) && $resized_size && 720 === $resized_size[0] && 378 === $resized_size[1], 'Generated PNG uses the selected 720x378 dimensions.' );
+$oembed_dimensions = WP_Remote_OG_SEO::filter_oembed_thumbnail( array(), get_post( $post_id ) );
+wp_remote_og_assert( 720 === $oembed_dimensions['thumbnail_width'] && 378 === $oembed_dimensions['thumbnail_height'], 'oEmbed dimensions use the selected image size.' );
+WP_Remote_OG_Uploads::safe_delete( $resized_render_path );
+WP_Remote_OG_Plugin::save_settings( array( 'default_image_size' => '1200x630' ) );
+
 $render_path = trailingslashit( $render_dir['path'] ) . 'wp-remote-og-render-test.png';
 $rendered    = WP_Remote_OG_Renderer::render_post( $post_id, $template, $render_path, 'gd' );
 wp_remote_og_assert( ! is_wp_error( $rendered ) && file_exists( $render_path ), 'GD renderer creates a PNG file.' );
@@ -447,6 +472,12 @@ foreach ( array( $post_id, $fallback_post, $page_id ) as $wp_remote_og_cleanup_p
 	if ( $wp_remote_og_cleanup_post_id && get_post( $wp_remote_og_cleanup_post_id ) ) {
 		wp_delete_post( $wp_remote_og_cleanup_post_id, true );
 	}
+}
+
+if ( false === $original_image_settings ) {
+	delete_option( WP_Remote_OG_Plugin::OPTION_SETTINGS );
+} else {
+	update_option( WP_Remote_OG_Plugin::OPTION_SETTINGS, $original_image_settings, false );
 }
 
 $result = $GLOBALS['wp_remote_og_test_results'];
