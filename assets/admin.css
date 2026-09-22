@@ -97,9 +97,15 @@
 	justify-content: center;
 }
 
-.wp-remote-og-delete-layer {
+.wp-core-ui .button.wp-remote-og-delete-layer {
 	border-color: #d63638;
 	color: #d63638;
+}
+
+.wp-core-ui .button.wp-remote-og-delete-layer:hover {
+	background: #d63638;
+	border-color: #d63638;
+	color: #fff;
 }
 
 .wp-remote-og-import-template {
