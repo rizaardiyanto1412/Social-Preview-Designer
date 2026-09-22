@@ -2910,34 +2910,52 @@ final class WP_Remote_OG_Admin {
 			<h1><?php esc_html_e( 'Social Preview Designer — Template Editor', 'social-preview-designer' ); ?></h1>
 			<?php self::tabs( 'wp-remote-og' ); ?>
 
+			<p class="wp-remote-og-intro">
+				<?php esc_html_e( 'Design the image template once, then save it — every new or updated post gets a generated social image automatically. Pick a post below to preview real content, and use Generation Tools to refresh existing posts.', 'social-preview-designer' ); ?>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-remote-og-tools' ) ); ?>"><?php esc_html_e( 'Open Generation Tools', 'social-preview-designer' ); ?></a>
+			</p>
+
 			<div class="wp-remote-og-editor" data-template="<?php echo esc_attr( wp_json_encode( $template ) ); ?>">
-					<div class="wp-remote-og-toolbar">
-						<button type="button" class="button button-primary" id="wp-remote-og-save-template"><?php esc_html_e( 'Save Template', 'social-preview-designer' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-add-layer"><?php esc_html_e( 'Add Text Layer', 'social-preview-designer' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-add-image-layer"><?php esc_html_e( 'Add Image Layer', 'social-preview-designer' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-add-horizontal-line"><?php esc_html_e( 'Add Horizontal Line', 'social-preview-designer' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-add-vertical-line"><?php esc_html_e( 'Add Vertical Line', 'social-preview-designer' ); ?></button>
-						<button type="button" class="button" id="wp-remote-og-background"><?php esc_html_e( 'Select Background', 'social-preview-designer' ); ?></button>
-						<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=wp_remote_og_export_template' ), 'wp_remote_og_export_template' ) ); ?>"><?php esc_html_e( 'Export Template', 'social-preview-designer' ); ?></a>
-						<form class="wp-remote-og-import-template" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" enctype="multipart/form-data">
-							<input type="hidden" name="action" value="wp_remote_og_import_template">
-							<?php wp_nonce_field( 'wp_remote_og_import_template', 'wp_remote_og_import_nonce' ); ?>
-							<label class="screen-reader-text" for="wp-remote-og-import-file"><?php esc_html_e( 'Import template JSON', 'social-preview-designer' ); ?></label>
-							<input type="file" id="wp-remote-og-import-file" name="wp_remote_og_template_file" accept="application/json,.json" required>
-							<button type="submit" class="button"><?php esc_html_e( 'Import Template', 'social-preview-designer' ); ?></button>
-						</form>
-					<label for="wp-remote-og-preview-post"><?php esc_html_e( 'Preview post', 'social-preview-designer' ); ?></label>
-					<select id="wp-remote-og-preview-post">
-						<option value=""><?php esc_html_e( 'Select a post', 'social-preview-designer' ); ?></option>
-						<?php foreach ( $posts as $post ) : ?>
-							<option value="<?php echo esc_attr( $post['id'] ); ?>"><?php echo esc_html( $post['title'] ); ?></option>
-						<?php endforeach; ?>
-					</select>
-					<button type="button" class="button" id="wp-remote-og-refresh-preview"><?php esc_html_e( 'Refresh Preview', 'social-preview-designer' ); ?></button>
-				</div>
+				<div class="wp-remote-og-toolbar">
+						<div class="wp-remote-og-toolbar-group" role="group" aria-label="<?php esc_attr_e( 'Add layers', 'social-preview-designer' ); ?>">
+							<span class="wp-remote-og-toolbar-label"><?php esc_html_e( 'Add layer:', 'social-preview-designer' ); ?></span>
+							<button type="button" class="button" id="wp-remote-og-add-layer"><?php esc_html_e( 'Text', 'social-preview-designer' ); ?></button>
+							<button type="button" class="button" id="wp-remote-og-add-image-layer"><?php esc_html_e( 'Image', 'social-preview-designer' ); ?></button>
+							<button type="button" class="button" id="wp-remote-og-add-horizontal-line"><?php esc_html_e( 'Horizontal line', 'social-preview-designer' ); ?></button>
+							<button type="button" class="button" id="wp-remote-og-add-vertical-line"><?php esc_html_e( 'Vertical line', 'social-preview-designer' ); ?></button>
+						</div>
+						<div class="wp-remote-og-toolbar-group" role="group" aria-label="<?php esc_attr_e( 'Canvas', 'social-preview-designer' ); ?>">
+							<span class="wp-remote-og-toolbar-label"><?php esc_html_e( 'Canvas:', 'social-preview-designer' ); ?></span>
+							<button type="button" class="button" id="wp-remote-og-background"><?php esc_html_e( 'Select background', 'social-preview-designer' ); ?></button>
+						</div>
+						<div class="wp-remote-og-toolbar-group" role="group" aria-label="<?php esc_attr_e( 'Template', 'social-preview-designer' ); ?>">
+							<span class="wp-remote-og-toolbar-label"><?php esc_html_e( 'Template:', 'social-preview-designer' ); ?></span>
+							<button type="button" class="button button-primary" id="wp-remote-og-save-template"><?php esc_html_e( 'Save', 'social-preview-designer' ); ?></button>
+							<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=wp_remote_og_export_template' ), 'wp_remote_og_export_template' ) ); ?>"><?php esc_html_e( 'Export', 'social-preview-designer' ); ?></a>
+							<form class="wp-remote-og-import-template" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" enctype="multipart/form-data">
+								<input type="hidden" name="action" value="wp_remote_og_import_template">
+								<?php wp_nonce_field( 'wp_remote_og_import_template', 'wp_remote_og_import_nonce' ); ?>
+								<label class="screen-reader-text" for="wp-remote-og-import-file"><?php esc_html_e( 'Import template JSON', 'social-preview-designer' ); ?></label>
+								<input type="file" id="wp-remote-og-import-file" name="wp_remote_og_template_file" accept="application/json,.json" required>
+								<button type="submit" class="button"><?php esc_html_e( 'Import', 'social-preview-designer' ); ?></button>
+							</form>
+							<span id="wp-remote-og-status" class="wp-remote-og-status" aria-live="polite"></span>
+						</div>
+					</div>
 
 				<div class="wp-remote-og-editor-grid">
 					<section class="wp-remote-og-canvas-panel">
+						<div class="wp-remote-og-canvas-header">
+							<label for="wp-remote-og-preview-post"><?php esc_html_e( 'Preview with post', 'social-preview-designer' ); ?></label>
+							<select id="wp-remote-og-preview-post">
+								<option value=""><?php esc_html_e( 'Select a post', 'social-preview-designer' ); ?></option>
+								<?php foreach ( $posts as $post ) : ?>
+									<option value="<?php echo esc_attr( $post['id'] ); ?>"><?php echo esc_html( $post['title'] ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<button type="button" class="button" id="wp-remote-og-refresh-preview"><?php esc_html_e( 'Refresh', 'social-preview-designer' ); ?></button>
+							<span class="wp-remote-og-canvas-hint"><?php esc_html_e( 'Drag layers to move them, and drag the handles to resize. The dashed box is the safe area. With no post selected, placeholders like {post_title} are shown.', 'social-preview-designer' ); ?></span>
+						</div>
 						<div class="wp-remote-og-canvas-frame">
 							<div id="wp-remote-og-canvas" class="wp-remote-og-canvas" aria-label="<?php esc_attr_e( 'OG image canvas', 'social-preview-designer' ); ?>">
 								<div class="wp-remote-og-safe-area"></div>
@@ -2948,19 +2966,25 @@ final class WP_Remote_OG_Admin {
 					</section>
 
 					<aside class="wp-remote-og-side-panel">
-						<h2><?php esc_html_e( 'Layer List', 'social-preview-designer' ); ?></h2>
+						<h2><?php esc_html_e( 'Layers', 'social-preview-designer' ); ?></h2>
+						<p class="description"><?php esc_html_e( 'Click a layer here or on the canvas to edit it.', 'social-preview-designer' ); ?></p>
 						<ul id="wp-remote-og-layer-list" class="wp-remote-og-layer-list"></ul>
 
-						<h2><?php esc_html_e( 'Layer Controls', 'social-preview-designer' ); ?></h2>
+						<h2><?php esc_html_e( 'Layer settings', 'social-preview-designer' ); ?></h2>
 						<div class="wp-remote-og-controls">
-							<label><?php esc_html_e( 'Layer type', 'social-preview-designer' ); ?>
-								<select id="wp-remote-og-layer-type">
-									<option value="text"><?php esc_html_e( 'Text Layer', 'social-preview-designer' ); ?></option>
-									<option value="image"><?php esc_html_e( 'Image Layer', 'social-preview-designer' ); ?></option>
-									<option value="line"><?php esc_html_e( 'Line Layer', 'social-preview-designer' ); ?></option>
-								</select>
-							</label>
-							<div class="wp-remote-og-content-controls">
+							<div class="wp-remote-og-control-group">
+								<h3><?php esc_html_e( 'Type', 'social-preview-designer' ); ?></h3>
+								<label><?php esc_html_e( 'Layer type', 'social-preview-designer' ); ?>
+									<select id="wp-remote-og-layer-type">
+										<option value="text"><?php esc_html_e( 'Text Layer', 'social-preview-designer' ); ?></option>
+										<option value="image"><?php esc_html_e( 'Image Layer', 'social-preview-designer' ); ?></option>
+										<option value="line"><?php esc_html_e( 'Line Layer', 'social-preview-designer' ); ?></option>
+									</select>
+								</label>
+								<p class="description"><?php esc_html_e( 'Changing the type converts this layer — position and size are kept, type-specific settings reset.', 'social-preview-designer' ); ?></p>
+							</div>
+							<div class="wp-remote-og-control-group wp-remote-og-content-controls">
+								<h3><?php esc_html_e( 'Content', 'social-preview-designer' ); ?></h3>
 								<label><?php esc_html_e( 'Content / token', 'social-preview-designer' ); ?><input type="text" id="wp-remote-og-layer-content"></label>
 								<label><?php esc_html_e( 'Insert dynamic field', 'social-preview-designer' ); ?>
 									<select id="wp-remote-og-token-picker">
@@ -2972,7 +2996,8 @@ final class WP_Remote_OG_Admin {
 									</select>
 								</label>
 							</div>
-							<div class="wp-remote-og-visibility-controls">
+							<div class="wp-remote-og-control-group wp-remote-og-visibility-controls">
+								<h3><?php esc_html_e( 'Visibility', 'social-preview-designer' ); ?></h3>
 								<label><?php esc_html_e( 'Show layer only when', 'social-preview-designer' ); ?>
 									<select id="wp-remote-og-layer-requires-token">
 										<option value=""><?php esc_html_e( 'Always show', 'social-preview-designer' ); ?></option>
@@ -2983,10 +3008,12 @@ final class WP_Remote_OG_Admin {
 									</select>
 								</label>
 							</div>
-							<div class="wp-remote-og-color-controls">
+							<div class="wp-remote-og-control-group wp-remote-og-color-controls">
+								<h3><?php esc_html_e( 'Color', 'social-preview-designer' ); ?></h3>
 								<label><?php esc_html_e( 'Color', 'social-preview-designer' ); ?><input type="text" id="wp-remote-og-layer-color" class="wp-remote-og-color" value="#111827"></label>
 							</div>
-							<div class="wp-remote-og-text-controls">
+							<div class="wp-remote-og-control-group wp-remote-og-text-controls">
+								<h3><?php esc_html_e( 'Typography', 'social-preview-designer' ); ?></h3>
 								<label><?php esc_html_e( 'Font', 'social-preview-designer' ); ?>
 									<select id="wp-remote-og-layer-font">
 										<option value=""><?php esc_html_e( 'System font', 'social-preview-designer' ); ?></option>
@@ -3011,7 +3038,8 @@ final class WP_Remote_OG_Admin {
 									<label><?php esc_html_e( 'Max lines', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-max-lines" min="1" max="12"></label>
 								</div>
 							</div>
-							<div class="wp-remote-og-image-controls">
+							<div class="wp-remote-og-control-group wp-remote-og-image-controls">
+									<h3><?php esc_html_e( 'Image', 'social-preview-designer' ); ?></h3>
 									<button type="button" class="button button-secondary" id="wp-remote-og-layer-select-image"><?php esc_html_e( 'Select image', 'social-preview-designer' ); ?></button>
 									<label><?php esc_html_e( 'Shape', 'social-preview-designer' ); ?>
 										<select id="wp-remote-og-layer-image-shape">
@@ -3028,7 +3056,8 @@ final class WP_Remote_OG_Admin {
 										</select>
 									</label>
 								</div>
-							<div class="wp-remote-og-line-controls">
+							<div class="wp-remote-og-control-group wp-remote-og-line-controls">
+								<h3><?php esc_html_e( 'Line', 'social-preview-designer' ); ?></h3>
 								<label><?php esc_html_e( 'Direction', 'social-preview-designer' ); ?>
 									<select id="wp-remote-og-layer-line-orientation">
 										<option value="horizontal"><?php esc_html_e( 'Horizontal', 'social-preview-designer' ); ?></option>
@@ -3036,19 +3065,21 @@ final class WP_Remote_OG_Admin {
 									</select>
 								</label>
 							</div>
-							<div class="wp-remote-og-control-row">
-								<label><?php esc_html_e( 'X', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-x" min="0" max="1200"></label>
-								<label><?php esc_html_e( 'Y', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-y" min="0" max="630"></label>
+							<div class="wp-remote-og-control-group">
+								<h3><?php esc_html_e( 'Position & size', 'social-preview-designer' ); ?></h3>
+								<div class="wp-remote-og-control-row">
+									<label><?php esc_html_e( 'X', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-x" min="0" max="1200"></label>
+									<label><?php esc_html_e( 'Y', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-y" min="0" max="630"></label>
+								</div>
+								<div class="wp-remote-og-control-row">
+									<label><?php esc_html_e( 'Width', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-width" min="20" max="1200"></label>
+									<label><?php esc_html_e( 'Height', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-height" min="20" max="630"></label>
+								</div>
 							</div>
-							<div class="wp-remote-og-control-row">
-								<label><?php esc_html_e( 'Width', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-width" min="20" max="1200"></label>
-								<label><?php esc_html_e( 'Height', 'social-preview-designer' ); ?><input type="number" id="wp-remote-og-layer-height" min="20" max="630"></label>
-							</div>
-							<button type="button" class="button" id="wp-remote-og-delete-layer"><?php esc_html_e( 'Delete Layer', 'social-preview-designer' ); ?></button>
+							<button type="button" class="button wp-remote-og-delete-layer" id="wp-remote-og-delete-layer"><?php esc_html_e( 'Delete layer', 'social-preview-designer' ); ?></button>
 						</div>
 					</aside>
 				</div>
-				<div id="wp-remote-og-status" class="wp-remote-og-status" aria-live="polite"></div>
 			</div>
 		</div>
 		<?php
@@ -3070,6 +3101,7 @@ final class WP_Remote_OG_Admin {
 		<div class="wrap wp-remote-og-admin">
 			<h1><?php esc_html_e( 'Dynamic Fields', 'social-preview-designer' ); ?></h1>
 			<?php self::tabs( 'wp-remote-og-fields' ); ?>
+			<p class="wp-remote-og-intro"><?php esc_html_e( 'Dynamic fields are placeholders like {post_title} that resolve to real post data when an image is generated. Enable the fields you want to use, give each a label, and set fallback text for posts where the value is missing.', 'social-preview-designer' ); ?></p>
 			<form method="post" id="wp-remote-og-fields-form">
 				<?php wp_nonce_field( 'wp_remote_og_dynamic_fields', 'wp_remote_og_fields_nonce' ); ?>
 				<table class="widefat striped wp-remote-og-fields-table">
@@ -3132,11 +3164,14 @@ final class WP_Remote_OG_Admin {
 		<div class="wrap wp-remote-og-admin">
 			<h1><?php esc_html_e( 'Fonts', 'social-preview-designer' ); ?></h1>
 			<?php self::tabs( 'wp-remote-og-fonts' ); ?>
+			<p class="wp-remote-og-intro"><?php esc_html_e( 'Fonts added here can be used by text layers in the template editor. Upload a font file or pick one from Google Fonts.', 'social-preview-designer' ); ?></p>
+			<h2><?php esc_html_e( 'Upload a font file', 'social-preview-designer' ); ?></h2>
 			<form method="post" enctype="multipart/form-data" class="wp-remote-og-font-upload">
 				<?php wp_nonce_field( 'wp_remote_og_upload_font', 'wp_remote_og_font_nonce' ); ?>
 				<input type="file" name="wp_remote_og_font" accept=".ttf,.otf,.woff,.woff2" required>
 				<?php submit_button( __( 'Upload Font', 'social-preview-designer' ), 'primary', 'submit', false ); ?>
 			</form>
+			<h2><?php esc_html_e( 'Add a Google Font', 'social-preview-designer' ); ?></h2>
 			<form method="post" class="wp-remote-og-font-upload wp-remote-og-google-font-form">
 				<?php wp_nonce_field( 'wp_remote_og_add_google_font', 'wp_remote_og_google_font_nonce' ); ?>
 				<div class="wp-remote-og-google-font-field">
@@ -3173,6 +3208,7 @@ final class WP_Remote_OG_Admin {
 				</p>
 				<?php submit_button( __( 'Add Google Font', 'social-preview-designer' ), 'secondary', 'submit_google_font', false ); ?>
 			</form>
+			<h2><?php esc_html_e( 'Font library', 'social-preview-designer' ); ?></h2>
 			<table class="widefat striped">
 				<thead><tr><th><?php esc_html_e( 'Font', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'File', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Server Rendering', 'social-preview-designer' ); ?></th><th><?php esc_html_e( 'Uploaded', 'social-preview-designer' ); ?></th></tr></thead>
 				<tbody>
@@ -3247,6 +3283,7 @@ final class WP_Remote_OG_Admin {
 		<div class="wrap wp-remote-og-admin">
 			<h1><?php esc_html_e( 'Generation Tools', 'social-preview-designer' ); ?></h1>
 			<?php self::tabs( 'wp-remote-og-tools' ); ?>
+			<p class="wp-remote-og-intro"><?php esc_html_e( 'New and updated posts get a generated image automatically. Use these actions to refresh existing posts after changing the template, or to delete generated files that are no longer linked to a post.', 'social-preview-designer' ); ?></p>
 			<?php if ( get_option( WP_Remote_OG_Plugin::OPTION_TEMPLATE_DIRTY ) ) : ?>
 				<div class="notice notice-info inline"><p><strong><?php esc_html_e( 'Template changed. Regenerate all existing OG images now?', 'social-preview-designer' ); ?></strong></p></div>
 			<?php endif; ?>

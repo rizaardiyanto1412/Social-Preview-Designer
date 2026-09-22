@@ -9,6 +9,11 @@
 	margin-bottom: 18px;
 }
 
+.wp-remote-og-intro {
+	margin: 0 0 4px;
+	max-width: 760px;
+}
+
 .wp-remote-og-toolbar,
 .wp-remote-og-tool-actions,
 .wp-remote-og-font-upload {
@@ -20,6 +25,87 @@
 	gap: 10px;
 	margin: 16px 0;
 	padding: 12px;
+}
+
+.wp-remote-og-toolbar-group {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.wp-remote-og-toolbar-group + .wp-remote-og-toolbar-group {
+	border-left: 1px solid var(--wp-remote-og-border);
+	padding-left: 14px;
+}
+
+.wp-remote-og-toolbar-label {
+	color: #50575e;
+	font-weight: 600;
+}
+
+.wp-remote-og-status {
+	align-items: center;
+	display: inline-flex;
+	margin-top: 0;
+	min-height: 30px;
+}
+
+.wp-remote-og-canvas-header {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.wp-remote-og-canvas-header label {
+	font-weight: 600;
+}
+
+.wp-remote-og-canvas-hint {
+	color: #646970;
+	flex-basis: 100%;
+	font-size: 12px;
+	margin: 0;
+}
+
+.wp-remote-og-side-panel h2 {
+	font-size: 14px;
+	margin: 0 0 6px;
+}
+
+.wp-remote-og-side-panel .description {
+	margin: 0 0 8px;
+}
+
+.wp-remote-og-control-group {
+	border-top: 1px solid #dcdcde;
+	margin-top: 14px;
+	padding-top: 10px;
+}
+
+.wp-remote-og-control-group h3 {
+	font-size: 13px;
+	margin: 0 0 10px;
+}
+
+.wp-remote-og-layer-list li.is-empty {
+	color: #646970;
+	cursor: default;
+	font-style: italic;
+	justify-content: center;
+}
+
+.wp-core-ui .button.wp-remote-og-delete-layer {
+	border-color: #d63638;
+	color: #d63638;
+}
+
+.wp-core-ui .button.wp-remote-og-delete-layer:hover {
+	background: #d63638;
+	border-color: #d63638;
+	color: #fff;
 }
 
 .wp-remote-og-import-template {
