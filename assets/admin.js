@@ -848,6 +848,12 @@
 		}
 
 		list.empty();
+		if (!state.template.layers.length) {
+			list.append($('<li/>', {
+				'class': 'is-empty',
+				text: 'No layers yet — add one above.'
+			}));
+		}
 		state.template.layers.forEach(function (layer) {
 			var item = $('<li/>', {
 				'data-layer-id': layer.id,
@@ -1242,7 +1248,16 @@
 		});
 		$('#wp-remote-og-layer-select-image').on('click', selectLayerImage);
 		$('#wp-remote-og-delete-layer').on('click', function () {
-			if (!state.selectedLayerId || state.template.layers.length <= 1) {
+			var status = $('#wp-remote-og-status');
+			if (!state.selectedLayerId) {
+				setStatusMessage(status, 'Select a layer to delete.', 'error');
+				return;
+			}
+			if (state.template.layers.length <= 1) {
+				setStatusMessage(status, 'At least one layer is required.', 'error');
+				return;
+			}
+			if (!window.confirm('Delete this layer?')) {
 				return;
 			}
 			state.template.layers = state.template.layers.filter(function (layer) {
